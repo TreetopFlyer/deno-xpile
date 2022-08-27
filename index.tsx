@@ -5,7 +5,31 @@ import { serve } from "std/http/server.ts";
 import importMap from "./imports.json" assert { type: "json" };
 
 const appBaked = ReactDOMServer.renderToString(<App/>);
-const location = Deno.env.get("DENO_DIR") + "/gen/file/" + Deno.cwd().replace(":", "") + "/";
+const location = Deno.env.get("DENO_DIR") + "/gen/file/" + Deno.cwd().replace(":", "").replaceAll("\\", "/") + "/";
+
+import * as FS from "std/fs/mod.ts";
+import * as Twind from "esm/twind";
+import * as TwindServer from "esm/twind/shim/server";
+const sheet = TwindServer.virtualSheet();
+const parse = Twind.create({ sheet: sheet, preflight: true, theme: {}, plugins: {}, mode: "silent" }).tw;
+const leave = [ "__defineGetter__", "__defineSetter__", "__lookupGetter__", "__lookupSetter__", "hasOwnProperty", "isPrototypeOf", "propertyIsEnumerable", "valueOf", "toLocaleString" ];
+for await (const filePath of FS.walk(location, {exts:["tsx.js"]}))
+{
+    const fileText = await Deno.readTextFile(filePath.path);
+    const m = fileText.match(/[^<>\[\]\(\)|&"'`\.\s]*[^<>\[\]\(\)|&"'`\.\s:]/g);
+    if (m)
+    {
+        for (const c of m)
+        {
+            if (leave.indexOf(c) === -1)
+            {
+                try { parse(c); }
+                catch (e) { console.log(`Error: Failed to handle the pattern '${c}'`); }
+            }
+        }
+    }
+}
+const tailwind = TwindServer.getStyleTagProperties(sheet).textContent;
 
 serve(async (inRequest:Request) =>
 {
@@ -14,8 +38,7 @@ serve(async (inRequest:Request) =>
 
     if(path.startsWith("app/"))
     {
-        let mappedPath = location+path+".js";
-        console.log(mappedPath);
+        const mappedPath = location+path+".js";
         try
         {
             const text = await Deno.readTextFile(mappedPath);
@@ -36,6 +59,7 @@ serve(async (inRequest:Request) =>
                 <meta charSet="UTF-8"/>
                 <meta name="description" content="a description"/>
                 <script type="importmap">${JSON.stringify(importMap)}</script>
+                <style>${tailwind}</style>
             </head>
             <body>
                 <div id="app">${appBaked}</div>
@@ -43,11 +67,10 @@ serve(async (inRequest:Request) =>
                     import {createElement as h} from "react";
                     import {hydrateRoot} from "react-dom/client";
                     import App from "./app/App.tsx";
-                    hydrateRoot(document.querySelector("#app"), h(App, {route:"${url.pathname}", navigation}));
+                    hydrateRoot(document.querySelector("#app"), h(App, {route:"${url.pathname}", navigation:window.navigation}));
                 </script>
             </body>
         </html>`, {status:200, headers:{"content-type": "text/html; charset=utf-8"}});
     }
-
 }
 , {port:3333});

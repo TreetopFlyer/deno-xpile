@@ -1,6 +1,6 @@
 import React from "react";
 import ReactDOMServer from "react-dom/server";
-import App from "./app/App.tsx";
+import App, { PreloadTable } from "./app/App.tsx";
 import { serve } from "std/http/server.ts";
 import importMap from "./imports.json" assert { type: "json" };
 
@@ -53,7 +53,8 @@ serve(async (inRequest:Request) =>
     {
         const raw = await fetch(`https://catfact.ninja/fact`);
         const data = await raw.json();
-        const preload = {
+
+        const preload:PreloadTable = {
             meta:
             {
                 title:"XPiles Homepage",
@@ -62,10 +63,44 @@ serve(async (inRequest:Request) =>
             },
             data:
             {
-                "https://catfact.ninja/fact":data
             },
-            path:""
+            path:"",
+            fetch:(inURL)=>{},
+            queue:[]
         };
+        preload.fetch = (inURL)=>
+        {
+            const check:string|undefined = preload.data[inURL];
+            if(check)
+            {
+                return check;
+            }
+            else
+            {
+                preload.queue.push(
+                    fetch(inURL)
+                    .then(response=>response.json())
+                    .then(json=>preload.data[inURL] = json)
+                );
+            }
+        }
+
+        let bake = ReactDOMServer.renderToString(<App route={inRequest.url} preload={preload}/>);
+        let count = 0;
+        while(preload.queue.length)
+        {
+            count ++;
+            if(count > 5)
+            {
+                console.log("limited!");
+                break;
+            }
+            await Promise.all(preload.queue);
+            preload.queue = [];
+            bake = ReactDOMServer.renderToString(<App route={inRequest.url} preload={preload}/>);
+        }
+
+        console.log("done preloading");
 
         const page = await ReactDOMServer.renderToReadableStream(<html>
             <head>
@@ -74,8 +109,9 @@ serve(async (inRequest:Request) =>
                 <script type="importmap" dangerouslySetInnerHTML={{__html:JSON.stringify(importMap)}}/>
             </head>
             <body>
-                <div id="app"><App route={inRequest.url}/></div>
+                <div id="app"><App route={inRequest.url} preload={preload}/></div>
                 <script type="module" dangerouslySetInnerHTML={{__html:`
+
                     import {createElement as h} from "react";
                     import {hydrateRoot} from "react-dom/client";
                     import App from "./app/App.tsx";

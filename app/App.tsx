@@ -29,10 +29,26 @@ export type NavigationEvent = { canTransition: boolean, destination:{url:string}
 export type NavigationBinding = (type:string, handler:(event:NavigationEvent)=>void)=>void;
 export type Navigation = { addEventListener:NavigationBinding, removeEventListener:NavigationBinding };
 
+export type PreloadTable = {
+    meta:{
+        title?:string,
+        description?:string,
+        canonical?:string,
+        image?:string
+    },
+    data:
+    {
+        [key:string]: string
+    },
+    path:string,
+    fetch:(inURL:string)=>string|void,
+    queue:Promise<string>[]
+};
+
 export const RouteContext = React.createContext([new URL("https://default"), (inURL:URL)=>{}]);
 export const useRoute =()=> React.useContext(RouteContext)[0];
 
-const App =({navigation, route}:{ navigation?:Navigation, route:string })=>
+const App =({navigation, route, preload}:{ navigation?:Navigation, preload?:PreloadTable, route:string })=>
 {
     const routeBinding = React.useState(new URL("https://"+route));
 
@@ -48,6 +64,7 @@ const App =({navigation, route}:{ navigation?:Navigation, route:string })=>
 
     const [countGet, countSet] = React.useState(3);
     return <RouteContext.Provider value={routeBinding}><div>
+        <h1 className="font-black text-slate-300">{preload?.fetch("https://catfact.ninja/fact")?.fact}</h1>
         le app
         <button onClick={()=>countSet(countGet+1)}>{countGet}</button>
         <React.Suspense fallback={<p><strong>loading lazy.tsx</strong></p>}>

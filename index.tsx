@@ -4,7 +4,6 @@ import App from "./app/App.tsx";
 import { serve } from "std/http/server.ts";
 import importMap from "./imports.json" assert { type: "json" };
 
-const appBaked = ReactDOMServer.renderToString(<App/>);
 const location = Deno.env.get("DENO_DIR") + "/gen/file/" + Deno.cwd().replace(":", "").replaceAll("\\", "/") + "/";
 
 import * as FS from "std/fs/mod.ts";
@@ -29,13 +28,14 @@ for await (const filePath of FS.walk(location, {exts:["tsx.js"]}))
         }
     }
 }
-const tailwind = TwindServer.getStyleTagProperties(sheet).textContent;
+const tailwind = TwindServer.getStyleTagProperties(sheet);
 
 serve(async (inRequest:Request) =>
 {
     const url = new URL(inRequest.url);
     const path = url.pathname.substring(1).toLowerCase();
-
+    console.log("--", inRequest.url, "--");
+    if(path == "favicon.ico"){return new Response("404", {status:404, headers:{"content-type": "application/javascript; charset=utf-8"}});}
     if(path.startsWith("app/"))
     {
         const mappedPath = location+path+".js";
@@ -51,26 +51,48 @@ serve(async (inRequest:Request) =>
     }
     else
     {
-        return new Response(
-        `<!doctype html><html>
+        const raw = await fetch(`https://catfact.ninja/fact`);
+        const data = await raw.json();
+        const preload = {
+            meta:
+            {
+                title:"XPiles Homepage",
+                description:"prerendered!",
+                canonical:"/"
+            },
+            data:
+            {
+                "https://catfact.ninja/fact":data
+            },
+            path:""
+        };
+
+        const page = await ReactDOMServer.renderToReadableStream(<html>
             <head>
-                <title>Denolition</title>
-                <meta name="viewport" content="width=device-width, initial-scale=1"/>
-                <meta charSet="UTF-8"/>
-                <meta name="description" content="a description"/>
-                <script type="importmap">${JSON.stringify(importMap)}</script>
-                <style>${tailwind}</style>
+                <title>{preload.meta.title}</title>
+                <style dangerouslySetInnerHTML={{__html:tailwind.textContent}}/>
+                <script type="importmap" dangerouslySetInnerHTML={{__html:JSON.stringify(importMap)}}/>
             </head>
             <body>
-                <div id="app">${appBaked}</div>
-                <script type="module">
+                <div id="app"><App route={inRequest.url}/></div>
+                <script type="module" dangerouslySetInnerHTML={{__html:`
                     import {createElement as h} from "react";
                     import {hydrateRoot} from "react-dom/client";
                     import App from "./app/App.tsx";
-                    hydrateRoot(document.querySelector("#app"), h(App, {route:"${url.pathname}", navigation:window.navigation}));
-                </script>
+
+                    const root = document.querySelector("#app");
+                    const comp = h(App, {
+                        route:"${inRequest.url}",
+                        navigation:window.navigation
+                    });
+
+                    hydrateRoot(root, comp);
+                `}}/>
             </body>
-        </html>`, {status:200, headers:{"content-type": "text/html; charset=utf-8"}});
+        </html>);
+        await page.allReady;
+
+        return new Response(page, {status:200, headers:{"content-type": "text/html; charset=utf-8"}});
     }
 }
 , {port:3333});

@@ -51,9 +51,6 @@ serve(async (inRequest:Request) =>
     }
     else
     {
-        const raw = await fetch(`https://catfact.ninja/fact`);
-        const data = await raw.json();
-
         const preload:PreloadTable = {
             meta:
             {
@@ -66,7 +63,8 @@ serve(async (inRequest:Request) =>
             },
             path:"",
             fetch:(inURL)=>{},
-            queue:[]
+            queue:[],
+            client:false
         };
         preload.fetch = (inURL)=>
         {
@@ -85,14 +83,15 @@ serve(async (inRequest:Request) =>
             }
         }
 
+        console.log("pass pre");
         let bake = ReactDOMServer.renderToString(<App route={inRequest.url} preload={preload}/>);
         let count = 0;
         while(preload.queue.length)
         {
             count ++;
+            console.log("pass", count);
             if(count > 5)
             {
-                console.log("limited!");
                 break;
             }
             await Promise.all(preload.queue);
@@ -105,21 +104,28 @@ serve(async (inRequest:Request) =>
         const page = await ReactDOMServer.renderToReadableStream(<html>
             <head>
                 <title>{preload.meta.title}</title>
+                <meta name="viewport" content="width=device-width, initial-scale=1"/>
+                <meta name="description" content="prerendered stuff!"/>
                 <style dangerouslySetInnerHTML={{__html:tailwind.textContent}}/>
                 <script type="importmap" dangerouslySetInnerHTML={{__html:JSON.stringify(importMap)}}/>
             </head>
             <body>
-                <div id="app"><App route={inRequest.url} preload={preload}/></div>
+                <div id="app" dangerouslySetInnerHTML={{__html:bake}}></div>
                 <script type="module" dangerouslySetInnerHTML={{__html:`
 
                     import {createElement as h} from "react";
                     import {hydrateRoot} from "react-dom/client";
                     import App from "./app/App.tsx";
 
+                    const preload = ${JSON.stringify(preload)};
+                    preload.client = true;
+                    preload.fetch =(inURL)=>preload.data[inURL] ?? false;
+
                     const root = document.querySelector("#app");
                     const comp = h(App, {
                         route:"${inRequest.url}",
-                        navigation:window.navigation
+                        navigation:window.navigation,
+                        preload:preload
                     });
 
                     hydrateRoot(root, comp);

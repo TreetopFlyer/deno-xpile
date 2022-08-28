@@ -66,7 +66,8 @@ serve(async (inRequest:Request) =>
             },
             path:"",
             fetch:(inURL)=>{},
-            queue:[]
+            queue:[],
+            client:false
         };
         preload.fetch = (inURL)=>
         {
@@ -85,11 +86,13 @@ serve(async (inRequest:Request) =>
             }
         }
 
+        console.log("pass pre")
         let bake = ReactDOMServer.renderToString(<App route={inRequest.url} preload={preload}/>);
         let count = 0;
         while(preload.queue.length)
         {
             count ++;
+            console.log("pass", count);
             if(count > 5)
             {
                 console.log("limited!");
@@ -116,10 +119,15 @@ serve(async (inRequest:Request) =>
                     import {hydrateRoot} from "react-dom/client";
                     import App from "./app/App.tsx";
 
+                    const preload = ${JSON.stringify(preload)};
+                    preload.client = true;
+                    preload.fetch =(inURL)=>preload.data[inURL] ?? false;
+
                     const root = document.querySelector("#app");
                     const comp = h(App, {
                         route:"${inRequest.url}",
-                        navigation:window.navigation
+                        navigation:window.navigation,
+                        preload:preload
                     });
 
                     hydrateRoot(root, comp);

@@ -42,13 +42,14 @@ export type PreloadTable = {
     },
     path:string,
     fetch:(inURL:string)=>string|void,
-    queue:Promise<string>[]
+    queue:Promise<string>[],
+    client:boolean
 };
 
 export const RouteContext = React.createContext([new URL("https://default"), (inURL:URL)=>{}]);
 export const useRoute =()=> React.useContext(RouteContext)[0];
 
-const App =({navigation, route, preload}:{ navigation?:Navigation, preload?:PreloadTable, route:string })=>
+const App =({navigation, route, preload}:{ navigation?:Navigation, preload:PreloadTable, route:string })=>
 {
     const routeBinding = React.useState(new URL("https://"+route));
 
@@ -62,18 +63,27 @@ const App =({navigation, route, preload}:{ navigation?:Navigation, preload?:Prel
         } 
     }, []);
 
+
+    const [getPre, setPre] = React.useState(preload.fetch("https://catfact.ninja/fact")??false);
+    React.useEffect(()=>
+    {
+        if(preload?.client && !getPre)
+        {
+            console.log("on client. preloaded resource not found, fetching with browser.");
+            fetch("https://catfact.ninja/fact")
+            .then(response=>response.json())
+            .then(json=>setPre(json));
+        }
+
+    }, []);
+
+    preload.meta.title = getPre?.fact;
+
     const [countGet, countSet] = React.useState(3);
     return <RouteContext.Provider value={routeBinding}><div>
-        <h1 className="font-black text-slate-300">{preload?.fetch("https://catfact.ninja/fact")?.fact}</h1>
+        <h1 className="font-black text-slate-300">{getPre && getPre.fact}</h1>
         le app
         <button onClick={()=>countSet(countGet+1)}>{countGet}</button>
-        <React.Suspense fallback={<p><strong>loading lazy.tsx</strong></p>}>
-            <OtherComponent/>
-        </React.Suspense>
-        <hr/>
-        <React.Suspense fallback={<p><em>that delayed thing is loading</em></p>}>
-            <Delayed/>
-        </React.Suspense>
     </div></RouteContext.Provider>;
 }
 

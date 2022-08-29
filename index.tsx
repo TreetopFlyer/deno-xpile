@@ -75,7 +75,7 @@ serve(async (inRequest:Request) =>
             bake = ReactDOMServer.renderToString(<App/>);
         }
 
-        console.log("done preloading");
+        console.log("done preloading", PreloadObject.data);
 
         const page = await ReactDOMServer.renderToReadableStream(<html>
             <head>

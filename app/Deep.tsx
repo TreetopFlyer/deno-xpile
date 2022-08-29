@@ -12,13 +12,12 @@ export default ()=>
     const testBinding = React.useContext(TestCtx);
     testBinding.test = "mutated!";
 
-
     const profile = useIsoFetch("https://randomuser.me/api/");
     const getName =()=> 
     {
-        const name = profile.data.results[0].name;
+        const name = profile.json.results[0].name;
         return `(${name.title}) ${name.first} ${name.last}`;
-    }
+    };
 
     return <div className="p-2 border">
         <nav>

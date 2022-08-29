@@ -58,6 +58,10 @@ export const PreloadMethods:PreloadInterface =
     meta(inFields)
     {
         PreloadObject.meta = {...PreloadObject.meta, ...inFields}
+        if(PreloadObject.client)
+        {
+            document.title = PreloadObject.meta.title;
+        }
     }
 };
 export const PreloadContext = React.createContext(PreloadMethods);
@@ -65,8 +69,7 @@ export const usePreload =()=> React.useContext(PreloadContext);
 
 const App =({navigation, route, preload}:{ navigation?:Navigation, preload:PreloadTable, route:string })=>
 {
-    const routeBinding = React.useState(new URL("amber://"+route));
-
+    const routeBinding = React.useState(new URL("https://amber"+PreloadObject.path));
     React.useEffect(()=>
     {
         if(navigation)
@@ -76,7 +79,6 @@ const App =({navigation, route, preload}:{ navigation?:Navigation, preload:Prelo
             return ()=>navigation.removeEventListener("navigate", handler);
         } 
     }, []);
-
 
     const [getPre, setPre] = React.useState(preload.fetch("https://catfact.ninja/fact")??false);
     React.useEffect(()=>
@@ -88,20 +90,18 @@ const App =({navigation, route, preload}:{ navigation?:Navigation, preload:Prelo
             .then(response=>response.json())
             .then(json=>setPre(json));
         }
-
     }, []);
 
     preload.meta.title = getPre?.fact;
 
     const [countGet, countSet] = React.useState(3);
     return <NavigationContext.Provider value={routeBinding}>
-        <PreloadContext.Provider value={PreloadMethods}>     
+        <PreloadContext.Provider value={PreloadMethods}>    
             <div>
                 <h1 className="font-black text-slate-300">{getPre && getPre.fact}</h1>
                 <h2>le app</h2>
                 <button onClick={()=>countSet(countGet+1)}>{countGet}</button>
                 <Deep/>
-                <p><strong>deep check:</strong>{PreloadObject.meta.title}</p>
             </div>
         </PreloadContext.Provider>
     </NavigationContext.Provider>;

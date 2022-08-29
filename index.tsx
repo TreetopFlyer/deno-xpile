@@ -1,6 +1,6 @@
 import React from "react";
 import ReactDOMServer from "react-dom/server";
-import App, { PreloadTable } from "./app/App.tsx";
+import App, { PreloadTable, PreloadObject } from "./app/App.tsx";
 import { serve } from "std/http/server.ts";
 import importMap from "./imports.json" assert { type: "json" };
 
@@ -12,6 +12,7 @@ import * as TwindServer from "esm/twind/shim/server";
 const sheet = TwindServer.virtualSheet();
 const parse = Twind.create({ sheet: sheet, preflight: true, theme: {}, plugins: {}, mode: "silent" }).tw;
 const leave = [ "__defineGetter__", "__defineSetter__", "__lookupGetter__", "__lookupSetter__", "hasOwnProperty", "isPrototypeOf", "propertyIsEnumerable", "valueOf", "toLocaleString" ];
+
 for await (const filePath of FS.walk(location, {exts:["tsx.js"]}))
 {
     const fileText = await Deno.readTextFile(filePath.path);
@@ -28,6 +29,7 @@ for await (const filePath of FS.walk(location, {exts:["tsx.js"]}))
         }
     }
 }
+
 const tailwind = TwindServer.getStyleTagProperties(sheet);
 
 serve(async (inRequest:Request) =>
@@ -51,6 +53,10 @@ serve(async (inRequest:Request) =>
     }
     else
     {
+
+        PreloadObject.path = url.pathname;
+        PreloadObject.client = false;
+
         const preload:PreloadTable = {
             meta:
             {
@@ -103,19 +109,24 @@ serve(async (inRequest:Request) =>
 
         const page = await ReactDOMServer.renderToReadableStream(<html>
             <head>
-                <title>{preload.meta.title}</title>
+                <title>{PreloadObject.meta.title}</title>
                 <meta name="viewport" content="width=device-width, initial-scale=1"/>
                 <meta name="description" content="prerendered stuff!"/>
                 <style dangerouslySetInnerHTML={{__html:tailwind.textContent}}/>
                 <script type="importmap" dangerouslySetInnerHTML={{__html:JSON.stringify(importMap)}}/>
-            </head>
+            </head>{`
+            `}
             <body>
                 <div id="app" dangerouslySetInnerHTML={{__html:bake}}></div>
                 <script type="module" dangerouslySetInnerHTML={{__html:`
 
                     import {createElement as h} from "react";
                     import {hydrateRoot} from "react-dom/client";
-                    import App from "./app/App.tsx";
+                    import App, { PreloadObject } from "./app/App.tsx";
+
+                    PreloadObject.path = "${url.pathname}";
+                    PreloadObject.client = true;
+
 
                     const preload = ${JSON.stringify(preload)};
                     preload.client = true;

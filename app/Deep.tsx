@@ -1,5 +1,5 @@
 import React from "react";
-import { usePreload, useNavigation, useIsoFetch, TestCtx } from "./App.tsx";
+import { usePreload, useNavigation, useIsoFetch } from "./App.tsx";
 
 export default ()=>
 {
@@ -9,10 +9,8 @@ export default ()=>
     const path = useNavigation();
     const highlight =(inPath:string)=> path.pathname == inPath ? "bg-red-500" : "bg-black";
 
-    const testBinding = React.useContext(TestCtx);
-    testBinding.test = "mutated!";
-
-    const profile = useIsoFetch("https://randomuser.me/api/");
+    const fetchURL = "https://randomuser.me/api/?arg="+path.pathname;
+    const profile = useIsoFetch(fetchURL);
     const getName =()=> 
     {
         const name = profile.json.results[0].name;
@@ -25,6 +23,7 @@ export default ()=>
             <a className={`text-white p-2 ${highlight("/about")}`} href="/about">About</a>
             <a className={`text-white p-2 ${highlight("/blog")}`} href="/blog">Blog</a>
         </nav> 
+        <h3 className="font-xl">{fetchURL}</h3>
         <div>
             { profile.data && getName()}
         </div>

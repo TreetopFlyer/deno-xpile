@@ -1,6 +1,6 @@
 import React from "react";
 import ReactDOMServer from "react-dom/server";
-import App, { PreloadTable, PreloadObject, TestObj, TestCtx } from "./app/App.tsx";
+import App, { PreloadObject } from "./app/App.tsx";
 import { serve } from "std/http/server.ts";
 import importMap from "./imports.json" assert { type: "json" };
 
@@ -57,8 +57,6 @@ serve(async (inRequest:Request) =>
         PreloadObject.path = url.pathname;
         PreloadObject.client = false;
 
-        //console.log(TestObj, TestCtx);
-
         console.log("pass pre");
         let bake = ReactDOMServer.renderToString(<App/>);
         let count = 0;
@@ -102,8 +100,6 @@ hydrateRoot(document.querySelector("#app"), h(App));
 `}}/>
             </body>
         </html>);
-
-        //console.log(TestObj, TestCtx);
 
         return new Response(page, {status:200, headers:{"content-type": "text/html; charset=utf-8"}});
     }

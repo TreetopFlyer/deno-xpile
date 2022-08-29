@@ -49,16 +49,14 @@ export const PreloadMethods:PreloadInterface =
         {
             const loader = async (inURL:string, inSlot:PreloadEntry)=>
             {
+                console.log(`"server" loader called`)
                 try
                 {
                     const response = await fetch(inURL);
                     const text = await response.text();
-                    inSlot[ response.status == 200 ? "data" : "error" ] = text;
+                    response.status == 200 ? inSlot.data=text : inSlot.error=text;
                 }
-                catch(e)
-                {
-                    inSlot.error = e;
-                }
+                catch(e){ inSlot.error = e; }
             };
             const newSlot = {data:false, error:false} as PreloadEntry;
             PreloadObject.data[inURL] = newSlot;
@@ -78,9 +76,6 @@ export const PreloadMethods:PreloadInterface =
 export const PreloadContext = React.createContext(PreloadMethods);
 export const usePreload =()=> React.useContext(PreloadContext);
 
-export const TestObj = {test:"default"};
-export const TestCtx = React.createContext(TestObj); 
-
 export const useIsoFetch =(inURL:string)=>
 {
     const slot = PreloadMethods.data(inURL)
@@ -88,15 +83,31 @@ export const useIsoFetch =(inURL:string)=>
     const [getErr, setErr] = React.useState(slot.error);
     React.useEffect(()=>
     {
-        if(PreloadObject.client && !getPre && !getErr)
+
+        if(!slot.data && !slot.error)
         {
-            console.log("on client. preloaded resource not found, fetching with browser.");
-            fetch(inURL)
-            .then(response=>response.text())
-            .then(text=>setPre(text))
-            .catch(e=>setErr(e))
+            console.log(`preloaded resource (${inURL}) not found, fetching with browser.`);
+            const loader = async (inURL:string)=>
+            {
+                try
+                {
+                    const response = await fetch(inURL);
+                    const text = await response.text();
+                    response.status == 200 ? setPre(text) : setErr(text);
+                }
+                catch(e){ setErr(e); }
+            };
+            console.log(`"client" loader called`)
+            loader(inURL);
         }
-    }, []);
+        else
+        {
+            console.log(`preloaded found (${inURL}), switching states`);
+            setErr(slot.error);
+            setPre(slot.data)
+        }
+
+    }, [inURL]);
 
     return { data: getPre, dataUpdate: setPre, error: getErr, json: getPre ? JSON.parse(getPre) : false }
 };
@@ -120,7 +131,6 @@ const App =()=>
     const [countGet, countSet] = React.useState(3);
     return <NavigationContext.Provider value={routeBinding}>
         <PreloadContext.Provider value={PreloadMethods}> 
-            <TestCtx.Provider value={TestObj}> 
             <div>
                 <h1 className="font-black text-slate-300">
                     {data && json.fact}
@@ -130,7 +140,6 @@ const App =()=>
                 <button onClick={()=>countSet(countGet+1)}>{countGet}</button>
                 <Deep/>
             </div>
-            </TestCtx.Provider>  
         </PreloadContext.Provider>
     </NavigationContext.Provider>;
 }

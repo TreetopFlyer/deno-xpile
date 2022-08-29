@@ -1,57 +1,71 @@
 import React from "react";
-
-//import("./Lazy.tsx").then(Lazy=>{console.log(Lazy);});
-const OtherComponent = React.lazy(() => import('./Lazy.tsx'));
-
-const Delayed = React.lazy(async ()=>
-{
-    type me = {results:[{name:{first:string, last:string}}]};
-
-    const raw = await fetch(`https://randomuser.me/api/`);
-    const data:me = await raw.json();
-    const name = data.results[0].name;
-
-    console.log(name);
-
-    return {
-        default: ()=>{
-            console.log("mini component rendered", name);
-            return <ul>
-                <li>a fact has loaded</li>
-                <li>{name.first} {name.last}</li>
-            </ul>;
-        }
-    };
-})
-
+import Deep from "./Deep.tsx";
 
 export type NavigationEvent = { canTransition: boolean, destination:{url:string}, transitionWhile: ( arg:void )=>void };
 export type NavigationBinding = (type:string, handler:(event:NavigationEvent)=>void)=>void;
 export type Navigation = { addEventListener:NavigationBinding, removeEventListener:NavigationBinding };
+export const NavigationContext = React.createContext([new URL("https://default"), (inURL:URL)=>{}]);
+export const useNavigation =()=> React.useContext(NavigationContext)[0];
 
+export type PreloadMetas = {
+    title?: string,
+    description?: string,
+    canonical?: string,
+    image?: string
+}
 export type PreloadTable = {
-    meta:{
-        title?:string,
-        description?:string,
-        canonical?:string,
-        image?:string
-    },
+    meta: PreloadMetas,
     data:
     {
         [key:string]: string
     },
-    path:string,
-    fetch:(inURL:string)=>string|void,
-    queue:Promise<string>[],
-    client:boolean
+    path: string,
+    fetch: (inURL:string)=>string|void,
+    queue: Promise<string>[],
+    client: boolean
 };
-
-export const RouteContext = React.createContext([new URL("https://default"), (inURL:URL)=>{}]);
-export const useRoute =()=> React.useContext(RouteContext)[0];
+export type PreloadInterface =
+{
+    data: (inURL:string)=>void
+    meta: (inFields:PreloadMetas)=>void
+};
+export const PreloadObject:PreloadTable = {
+    meta: {},
+    data: {},
+    path: "",
+    fetch:(inURL)=>{},
+    queue: [],
+    client: true
+};
+export const PreloadMethods:PreloadInterface =
+{
+    data(inURL)
+    {
+        const check:string|undefined = PreloadObject.data[inURL];
+        if(check)
+        {
+            return check;
+        }
+        else
+        {
+            PreloadObject.queue.push(
+                fetch(inURL)
+                .then(response=>response.json())
+                .then(json=>PreloadObject.data[inURL] = json)
+            );
+        }
+    },
+    meta(inFields)
+    {
+        PreloadObject.meta = {...PreloadObject.meta, ...inFields}
+    }
+};
+export const PreloadContext = React.createContext(PreloadMethods);
+export const usePreload =()=> React.useContext(PreloadContext);
 
 const App =({navigation, route, preload}:{ navigation?:Navigation, preload:PreloadTable, route:string })=>
 {
-    const routeBinding = React.useState(new URL("https://"+route));
+    const routeBinding = React.useState(new URL("amber://"+route));
 
     React.useEffect(()=>
     {
@@ -80,11 +94,17 @@ const App =({navigation, route, preload}:{ navigation?:Navigation, preload:Prelo
     preload.meta.title = getPre?.fact;
 
     const [countGet, countSet] = React.useState(3);
-    return <RouteContext.Provider value={routeBinding}><div>
-        <h1 className="font-black text-slate-300">{getPre && getPre.fact}</h1>
-        le app
-        <button onClick={()=>countSet(countGet+1)}>{countGet}</button>
-    </div></RouteContext.Provider>;
+    return <NavigationContext.Provider value={routeBinding}>
+        <PreloadContext.Provider value={PreloadMethods}>     
+            <div>
+                <h1 className="font-black text-slate-300">{getPre && getPre.fact}</h1>
+                <h2>le app</h2>
+                <button onClick={()=>countSet(countGet+1)}>{countGet}</button>
+                <Deep/>
+                <p><strong>deep check:</strong>{PreloadObject.meta.title}</p>
+            </div>
+        </PreloadContext.Provider>
+    </NavigationContext.Provider>;
 }
 
 

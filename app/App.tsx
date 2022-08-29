@@ -20,20 +20,18 @@ export type PreloadTable = {
         [key:string]: string
     },
     path: string,
-    fetch: (inURL:string)=>string|void,
     queue: Promise<string>[],
     client: boolean
 };
 export type PreloadInterface =
 {
-    data: (inURL:string)=>void
+    data: (inURL:string)=>string|false
     meta: (inFields:PreloadMetas)=>void
 };
 export const PreloadObject:PreloadTable = {
     meta: {},
     data: {},
     path: "",
-    fetch:(inURL)=>{},
     queue: [],
     client: true
 };
@@ -53,6 +51,7 @@ export const PreloadMethods:PreloadInterface =
                 .then(response=>response.json())
                 .then(json=>PreloadObject.data[inURL] = json)
             );
+            return false;
         }
     },
     meta(inFields)
@@ -67,12 +66,12 @@ export const PreloadMethods:PreloadInterface =
 export const PreloadContext = React.createContext(PreloadMethods);
 export const usePreload =()=> React.useContext(PreloadContext);
 
-const App =({navigation, route, preload}:{ navigation?:Navigation, preload:PreloadTable, route:string })=>
+const App =()=>
 {
     const routeBinding = React.useState(new URL("https://amber"+PreloadObject.path));
     React.useEffect(()=>
     {
-        if(navigation)
+        if(PreloadObject.client && navigation)
         {
             const handler = (e:NavigationEvent) => e.transitionWhile( routeBinding[1](new URL(e.destination.url)) );
             navigation.addEventListener("navigate", handler);
@@ -80,10 +79,10 @@ const App =({navigation, route, preload}:{ navigation?:Navigation, preload:Prelo
         } 
     }, []);
 
-    const [getPre, setPre] = React.useState(preload.fetch("https://catfact.ninja/fact")??false);
+    const [getPre, setPre] = React.useState(PreloadMethods.data("https://catfact.ninja/fact"));
     React.useEffect(()=>
     {
-        if(preload?.client && !getPre)
+        if(PreloadObject.client && !getPre)
         {
             console.log("on client. preloaded resource not found, fetching with browser.");
             fetch("https://catfact.ninja/fact")
@@ -91,8 +90,6 @@ const App =({navigation, route, preload}:{ navigation?:Navigation, preload:Prelo
             .then(json=>setPre(json));
         }
     }, []);
-
-    preload.meta.title = getPre?.fact;
 
     const [countGet, countSet] = React.useState(3);
     return <NavigationContext.Provider value={routeBinding}>

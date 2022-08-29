@@ -57,42 +57,10 @@ serve(async (inRequest:Request) =>
         PreloadObject.path = url.pathname;
         PreloadObject.client = false;
 
-        const preload:PreloadTable = {
-            meta:
-            {
-                title:"XPiles Homepage",
-                description:"prerendered!",
-                canonical:"/"
-            },
-            data:
-            {
-            },
-            path:"",
-            fetch:(inURL)=>{},
-            queue:[],
-            client:false
-        };
-        preload.fetch = (inURL)=>
-        {
-            const check:string|undefined = preload.data[inURL];
-            if(check)
-            {
-                return check;
-            }
-            else
-            {
-                preload.queue.push(
-                    fetch(inURL)
-                    .then(response=>response.json())
-                    .then(json=>preload.data[inURL] = json)
-                );
-            }
-        }
-
         console.log("pass pre");
-        let bake = ReactDOMServer.renderToString(<App route={inRequest.url} preload={preload}/>);
+        let bake = ReactDOMServer.renderToString(<App/>);
         let count = 0;
-        while(preload.queue.length)
+        while(PreloadObject.queue.length)
         {
             count ++;
             console.log("pass", count);
@@ -100,9 +68,9 @@ serve(async (inRequest:Request) =>
             {
                 break;
             }
-            await Promise.all(preload.queue);
-            preload.queue = [];
-            bake = ReactDOMServer.renderToString(<App route={inRequest.url} preload={preload}/>);
+            await Promise.all(PreloadObject.queue);
+            PreloadObject.queue = [];
+            bake = ReactDOMServer.renderToString(<App/>);
         }
 
         console.log("done preloading");
@@ -119,31 +87,20 @@ serve(async (inRequest:Request) =>
             <body>
                 <div id="app" dangerouslySetInnerHTML={{__html:bake}}></div>
                 <script type="module" dangerouslySetInnerHTML={{__html:`
+import {createElement as h} from "react";
+import {hydrateRoot} from "react-dom/client";
+import App, { PreloadObject } from "./app/App.tsx";
 
-                    import {createElement as h} from "react";
-                    import {hydrateRoot} from "react-dom/client";
-                    import App, { PreloadObject } from "./app/App.tsx";
+PreloadObject.path = "${url.pathname}";
+PreloadObject.client = true;
+PreloadObject.meta = ${JSON.stringify(PreloadObject.meta)};
+PreloadObject.data = ${JSON.stringify(PreloadObject.data)};
 
-                    PreloadObject.path = "${url.pathname}";
-                    PreloadObject.client = true;
-
-
-                    const preload = ${JSON.stringify(preload)};
-                    preload.client = true;
-                    preload.fetch =(inURL)=>preload.data[inURL] ?? false;
-
-                    const root = document.querySelector("#app");
-                    const comp = h(App, {
-                        route:"${inRequest.url}",
-                        navigation:window.navigation,
-                        preload:preload
-                    });
-
-                    hydrateRoot(root, comp);
-                `}}/>
+hydrateRoot(document.querySelector("#app"), h(App));
+`}}/>
             </body>
         </html>);
-        await page.allReady;
+        //await page.allReady;
 
         return new Response(page, {status:200, headers:{"content-type": "text/html; charset=utf-8"}});
     }

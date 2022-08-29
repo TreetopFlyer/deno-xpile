@@ -66,6 +66,28 @@ export const PreloadMethods:PreloadInterface =
 export const PreloadContext = React.createContext(PreloadMethods);
 export const usePreload =()=> React.useContext(PreloadContext);
 
+export const TestObj = {test:"default"};
+export const TestCtx = React.createContext(TestObj); 
+
+export const useIsoFetch =(inURL:string)=>
+{
+    const [getPre, setPre] = React.useState(PreloadMethods.data(inURL));
+    const [getErr, setErr] = React.useState(false);
+    React.useEffect(()=>
+    {
+        if(PreloadObject.client && !getPre)
+        {
+            console.log("on client. preloaded resource not found, fetching with browser.");
+            fetch(inURL)
+            .then(response=>response.json())
+            .then(json=>setPre(json))
+            .catch(e=>setErr(e))
+        }
+    }, []);
+
+    return { data: getPre, dataUpdate: setPre, error: getErr }
+};
+
 const App =()=>
 {
     const routeBinding = React.useState(new URL("https://amber"+PreloadObject.path));
@@ -79,27 +101,20 @@ const App =()=>
         } 
     }, []);
 
-    const [getPre, setPre] = React.useState(PreloadMethods.data("https://catfact.ninja/fact"));
-    React.useEffect(()=>
-    {
-        if(PreloadObject.client && !getPre)
-        {
-            console.log("on client. preloaded resource not found, fetching with browser.");
-            fetch("https://catfact.ninja/fact")
-            .then(response=>response.json())
-            .then(json=>setPre(json));
-        }
-    }, []);
+
+    const { data } = useIsoFetch("https://catfact.ninja/fact");
 
     const [countGet, countSet] = React.useState(3);
     return <NavigationContext.Provider value={routeBinding}>
-        <PreloadContext.Provider value={PreloadMethods}>    
+        <PreloadContext.Provider value={PreloadMethods}> 
+            <TestCtx.Provider value={TestObj}> 
             <div>
-                <h1 className="font-black text-slate-300">{getPre && getPre.fact}</h1>
+                <h1 className="font-black text-slate-300">{data && data.fact}</h1>
                 <h2>le app</h2>
                 <button onClick={()=>countSet(countGet+1)}>{countGet}</button>
                 <Deep/>
             </div>
+            </TestCtx.Provider>  
         </PreloadContext.Provider>
     </NavigationContext.Provider>;
 }

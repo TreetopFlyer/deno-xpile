@@ -47,20 +47,23 @@ export const PreloadMethods:PreloadInterface =
         }
         else
         {
-            const loader = async (inURL:string, inSlot:PreloadEntry)=>
-            {
-                console.log(`"server" loader called`)
-                try
-                {
-                    const response = await fetch(inURL);
-                    const text = await response.text();
-                    response.status == 200 ? inSlot.data=text : inSlot.error=text;
-                }
-                catch(e){ inSlot.error = e; }
-            };
             const newSlot = {data:false, error:false} as PreloadEntry;
             PreloadObject.data[inURL] = newSlot;
-            PreloadObject.queue.push(loader(inURL, newSlot));
+
+            if(!PreloadObject.client)
+            {
+                const loader = async (inURL:string, inSlot:PreloadEntry)=>
+                {
+                    try
+                    {
+                        const response = await fetch(inURL);
+                        const text = await response.text();
+                        response.status == 200 ? inSlot.data=text : inSlot.error=text;
+                    }
+                    catch(e){ inSlot.error = e; }
+                };
+                PreloadObject.queue.push(loader(inURL, newSlot));
+            }
             return newSlot;
         }
     },
@@ -83,19 +86,28 @@ export const useIsoFetch =(inURL:string)=>
     const [getErr, setErr] = React.useState(slot.error);
     React.useEffect(()=>
     {
-
         if(!slot.data && !slot.error)
         {
-            console.log(`preloaded resource (${inURL}) not found, fetching with browser.`);
+            console.log(`preloaded NOT found (${inURL}), fetching with browser.`);
             const loader = async (inURL:string)=>
             {
                 try
                 {
                     const response = await fetch(inURL);
                     const text = await response.text();
-                    response.status == 200 ? setPre(text) : setErr(text);
+                    slot.data = text;
+                    if(response.status == 200)
+                    {
+                        setPre(text);
+                        slot.data = text;
+                    }
+                    else
+                    {
+                        setErr(text);
+                        slot.error = text;
+                    }
                 }
-                catch(e){ setErr(e); }
+                catch(e){ setErr(e); slot.error = e; }
             };
             console.log(`"client" loader called`)
             loader(inURL);

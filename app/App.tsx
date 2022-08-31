@@ -13,7 +13,7 @@ export type PreloadMetas = {
     canonical?: string,
     image?: string
 }
-export type PreloadEntry = {data:false|string, error:boolean|string}
+export type PreloadEntry = {data:false|string, error:boolean|string, promise:false|Promise<PreloadEntry>}
 export type PreloadTable = {
     meta: PreloadMetas,
     data:
@@ -21,13 +21,12 @@ export type PreloadTable = {
         [key:string]: PreloadEntry
     },
     path: string,
-    queue: Promise<void>[],
+    queue: Promise<PreloadEntry>[],
     client: boolean
 };
 export type PreloadInterface =
 {
     data: (inURL:string)=>PreloadEntry
-    meta: (inFields:PreloadMetas)=>void
 };
 export const PreloadObject:PreloadTable = {
     meta: {},
@@ -36,6 +35,7 @@ export const PreloadObject:PreloadTable = {
     queue: [],
     client: true
 };
+
 export const PreloadMethods:PreloadInterface =
 {
     data(inURL)
@@ -47,81 +47,62 @@ export const PreloadMethods:PreloadInterface =
         }
         else
         {
-            const newSlot = {data:false, error:false} as PreloadEntry;
+            const newSlot = {data:false, error:false, promise:false} as PreloadEntry;
             PreloadObject.data[inURL] = newSlot;
 
-            if(!PreloadObject.client)
-            {
-                const loader = async (inURL:string, inSlot:PreloadEntry)=>
-                {
-                    try
-                    {
-                        const response = await fetch(inURL);
-                        const text = await response.text();
-                        response.status == 200 ? inSlot.data=text : inSlot.error=text;
-                    }
-                    catch(e){ inSlot.error = e; }
-                };
-                PreloadObject.queue.push(loader(inURL, newSlot));
-            }
-            return newSlot;
-        }
-    },
-    meta(inFields)
-    {
-        PreloadObject.meta = {...PreloadObject.meta, ...inFields}
-        if(PreloadObject.client)
-        {
-            document.title = PreloadObject.meta.title;
-        }
-    }
-};
-export const PreloadContext = React.createContext(PreloadMethods);
-export const usePreload =()=> React.useContext(PreloadContext);
-
-export const useIsoFetch =(inURL:string)=>
-{
-    const slot = PreloadMethods.data(inURL)
-    const [getPre, setPre] = React.useState(slot.data);
-    const [getErr, setErr] = React.useState(slot.error);
-    React.useEffect(()=>
-    {
-        if(!slot.data && !slot.error)
-        {
-            console.log(`preloaded NOT found (${inURL}), fetching with browser.`);
-            const loader = async (inURL:string)=>
+            const loader = async (inURL:string, inSlot:PreloadEntry)=>
             {
                 try
                 {
                     const response = await fetch(inURL);
                     const text = await response.text();
-                    slot.data = text;
-                    if(response.status == 200)
-                    {
-                        setPre(text);
-                        slot.data = text;
-                    }
-                    else
-                    {
-                        setErr(text);
-                        slot.error = text;
-                    }
+                    response.status == 200 ? inSlot.data=text : inSlot.error=text;
                 }
-                catch(e){ setErr(e); slot.error = e; }
+                catch(e){ inSlot.error = e;}
+
+                newSlot.promise = false;
+                return newSlot;
             };
-            console.log(`"client" loader called`)
-            loader(inURL);
+
+            newSlot.promise = loader(inURL, newSlot);
+            if(PreloadObject.client){ PreloadObject.queue.push(newSlot.promise); }
+
+            return newSlot;
+        }
+    }
+};
+
+export const useIsoData =(inURL:string)=>
+{
+    const slot = PreloadMethods.data(inURL);
+    const [getSlot, setSlot] = React.useState(slot);
+    React.useEffect(()=>
+    {
+        if(slot.promise)
+        {
+            console.log(`resource is currently being fetched`);
+            slot.promise.then(()=>setSlot(slot)).then(()=>console.log(`resource loaded`));
         }
         else
         {
             console.log(`preloaded found (${inURL}), switching states`);
-            setErr(slot.error);
-            setPre(slot.data)
+            setSlot(slot);
         }
 
     }, [inURL]);
 
-    return { data: getPre, dataUpdate: setPre, error: getErr, json: getPre ? JSON.parse(getPre) : false }
+    return { data: getSlot.data, error: getSlot.error, json: getSlot.data ? JSON.parse(getSlot.data) : false };
+};
+
+export const useIsoMeta =():[PreloadMetas, (update:PreloadMetas)=>void]=>
+{
+    const clone = {...PreloadObject.meta};
+    const update = (inReplacement:PreloadMetas)=>
+    {
+        PreloadObject.meta = {...PreloadObject.meta, ...inReplacement};
+        if(PreloadObject.client){ document.title = PreloadObject.meta.title??""; }
+    };
+    return [clone, update];
 };
 
 const App =()=>
@@ -138,11 +119,10 @@ const App =()=>
     }, []);
 
 
-    const { data, error, json } = useIsoFetch("https://catfact.ninja/fact");
+    const { data, error, json } = useIsoData("https://catfact.ninja/fact");
 
     const [countGet, countSet] = React.useState(3);
     return <NavigationContext.Provider value={routeBinding}>
-        <PreloadContext.Provider value={PreloadMethods}> 
             <div>
                 <h1 className="font-black text-slate-300">
                     {data && json.fact}
@@ -152,9 +132,7 @@ const App =()=>
                 <button onClick={()=>countSet(countGet+1)}>{countGet}</button>
                 <Deep/>
             </div>
-        </PreloadContext.Provider>
     </NavigationContext.Provider>;
-}
-
+};
 
 export default App;

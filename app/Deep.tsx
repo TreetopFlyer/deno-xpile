@@ -1,16 +1,16 @@
 import React from "react";
-import { usePreload, useNavigation, useIsoFetch } from "./App.tsx";
+import { useIsoMeta, useNavigation, useIsoData } from "./App.tsx";
 
 export default ()=>
 {
-    const { meta } = usePreload();
-    meta({title:"overide!!!"});
+    const [, metaSet] = useIsoMeta();
+    metaSet({title:"overide!!!"});
 
     const path = useNavigation();
     const highlight =(inPath:string)=> path.pathname == inPath ? "bg-red-500" : "bg-black";
 
     const fetchURL = "https://randomuser.me/api/?arg="+path.pathname;
-    const profile = useIsoFetch(fetchURL);
+    const profile = useIsoData(fetchURL);
     const getName =()=> 
     {
         const name = profile.json.results[0].name;
@@ -28,11 +28,11 @@ export default ()=>
             { profile.data && getName()}
         </div>
         { path.pathname == "/blog" && <div>
-                { meta({title:"Blog Title"}) }
+                { metaSet({title:"Blog Title"}) }
                 <p>the blog</p>
         </div>}
         { path.pathname == "/about" && <div>
-                { meta({title:"About Title"}) }
+                { metaSet({title:"About Title"}) }
                 <p>about page</p>
                 <p>welcome.</p>
         </div>}

@@ -13,7 +13,7 @@ export type PreloadMetas = {
     canonical?: string,
     image?: string
 }
-export type PreloadEntry = {data:false|string, error:boolean|string}
+export type PreloadEntry = {data:false|string, error:boolean|string, expiry:number, pending:null|Promise<string>}
 export type PreloadTable = {
     meta: PreloadMetas,
     data:
@@ -21,7 +21,7 @@ export type PreloadTable = {
         [key:string]: PreloadEntry
     },
     path: string,
-    queue: Promise<void>[],
+    queue: Promise<string>[],
     client: boolean
 };
 export type PreloadInterface =
@@ -78,6 +78,11 @@ export const PreloadMethods:PreloadInterface =
 };
 export const PreloadContext = React.createContext(PreloadMethods);
 export const usePreload =()=> React.useContext(PreloadContext);
+
+export const useIsoMeta =(keys:{[key:string]:string} | undefined)=>
+{
+    return [{...PreloadObject.meta}]
+}
 
 export const useIsoFetch =(inURL:string)=>
 {

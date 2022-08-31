@@ -9,31 +9,33 @@ type Actions
     | {type: "MetaMerge",   payload: KeyedMeta }
     | {type: "DataAdd",     payload: [string, RequestInit|undefined] }
 
-const InitialState:State = {
+type Binding = [State, React.Dispatch<Actions>];
+
+export const InitialState:State = {
     Meta:{},
     Data:{},
-    Path:"/",
+    Path:"/initial-path",
     Client:false,
     Queue:[]
 };
 
 const Reducer =(inState:State, inAction:Actions)=>
 {
+    console.log("Reducer called!");
+    let output = inState;
     switch(inAction.type)
     {
         case "MetaReplace" :
-            return {...inState, Meta: inAction.payload};
+            output = {...inState, Meta: inAction.payload};
+            break;
         case "MetaMerge" :
-            return {...inState, Meta: {...inState.Meta, ...inAction.payload}};
+            output = {...inState, Meta: {...inState.Meta, ...inAction.payload}};
+            break;
         case "DataAdd" :
         {
             const [key, options] = inAction.payload;
             const match:CacheRecord|undefined = inState.Data[key];
-            if(match)
-            {
-                return inState;
-            }
-            else
+            if(!match)
             {
                 const newRecord:CacheRecord = {
                     Data: false,
@@ -41,11 +43,19 @@ const Reducer =(inState:State, inAction:Actions)=>
                     Expiry: 0,
                     Pending: fetch(key, options).then(res=>res.text())
                 };
-                return { ...inState, Data: {...inState.Data, [key]:newRecord} }
+                output = { ...inState, Data: {...inState.Data, [key]:newRecord} };
             }
         }
 
     }
+    console.log(output);
+    return output;
 }
 
-const Context = React.createContext(null);
+export const IsoContext:React.Context<Binding> = React.createContext([InitialState, inAction=>{}]);
+export const IsoProvider =({state, children}:{state:State, children:JSX.Element})=>
+{
+    const binding:Binding = React.useReducer(Reducer, state);
+    return <IsoContext.Provider value={binding}>{children}</IsoContext.Provider>;
+};
+export const useIso =()=> React.useContext(IsoContext);

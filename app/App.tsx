@@ -1,5 +1,6 @@
 import React from "react";
 import Deep from "./Deep.tsx";
+import { IsoProvider, InitialState } from "./Iso.tsx";
 
 export type NavigationEvent = { canTransition: boolean, destination:{url:string}, transitionWhile: ( arg:void )=>void };
 export type NavigationBinding = (type:string, handler:(event:NavigationEvent)=>void)=>void;
@@ -148,15 +149,17 @@ const App =()=>
     const [countGet, countSet] = React.useState(3);
     return <NavigationContext.Provider value={routeBinding}>
         <PreloadContext.Provider value={PreloadMethods}> 
-            <div>
-                <h1 className="font-black text-slate-300">
-                    {data && json.fact}
-                    {error && "sorry, there was an error getting cat facts"}
-                </h1>
-                <h2>le app</h2>
-                <button onClick={()=>countSet(countGet+1)}>{countGet}</button>
-                <Deep/>
-            </div>
+            <IsoProvider state={InitialState}>
+                <div>
+                    <h1 className="font-black text-slate-300">
+                        {data && json.fact}
+                        {error && "sorry, there was an error getting cat facts"}
+                    </h1>
+                    <h2>le app</h2>
+                    <button onClick={()=>countSet(countGet+1)}>{countGet}</button>
+                    <Deep/>
+                </div>
+            </IsoProvider>
         </PreloadContext.Provider>
     </NavigationContext.Provider>;
 }

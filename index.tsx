@@ -3,6 +3,7 @@ import ReactDOMServer from "react-dom/server";
 import App, { PreloadObject } from "./app/App.tsx";
 import { serve } from "std/http/server.ts";
 import importMap from "./imports.json" assert { type: "json" };
+import { IsoContext, InitialState } from "./app/Iso.tsx";
 
 const location = Deno.env.get("DENO_DIR") + "/gen/file/" + Deno.cwd().replace(":", "").replaceAll("\\", "/") + "/";
 
@@ -74,6 +75,8 @@ serve(async (inRequest:Request) =>
         }
 
         console.log("done preloading", PreloadObject.data);
+
+        console.log("Iso InitialState", IsoContext);
 
         const page = await ReactDOMServer.renderToReadableStream(<html>
             <head>

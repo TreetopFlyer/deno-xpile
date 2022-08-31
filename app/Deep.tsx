@@ -1,5 +1,6 @@
 import React from "react";
 import { usePreload, useNavigation, useIsoFetch } from "./App.tsx";
+import { useIso } from "./Iso.tsx";
 
 export default ()=>
 {
@@ -17,12 +18,17 @@ export default ()=>
         return `(${name.title}) ${name.first} ${name.last}`;
     };
 
+    const [state, dispatch] = useIso();
+
+    dispatch({type:"MetaMerge", payload:{title:"Reducer-based Title!"}});
+
     return <div className="p-2 border">
         <nav>
             <a className={`text-white p-2 ${highlight("/")}`} href="/">Home</a>
             <a className={`text-white p-2 ${highlight("/about")}`} href="/about">About</a>
             <a className={`text-white p-2 ${highlight("/blog")}`} href="/blog">Blog</a>
         </nav> 
+        <h1 className="p-10 border">{state.Path}</h1>
         <h3 className="font-xl">{fetchURL}</h3>
         <div>
             { profile.data && getName()}

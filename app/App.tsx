@@ -149,7 +149,7 @@ const App =()=>
     const [countGet, countSet] = React.useState(3);
     return <NavigationContext.Provider value={routeBinding}>
         <PreloadContext.Provider value={PreloadMethods}> 
-            <IsoProvider state={InitialState}>
+            <IsoProvider seed={InitialState}>
                 <div>
                     <h1 className="font-black text-slate-300">
                         {data && json.fact}

@@ -53,9 +53,9 @@ const Reducer =(inState:State, inAction:Actions)=>
 }
 
 export const IsoContext:React.Context<Binding> = React.createContext([InitialState, inAction=>{}]);
-export const IsoProvider =({state, children}:{state:State, children:JSX.Element})=>
+export const IsoProvider =({seed, children}:{seed:State, children:JSX.Element})=>
 {
-    const binding:Binding = React.useReducer(Reducer, state);
+    const binding:Binding = seed.Client ? React.useReducer(Reducer, seed) : [seed, (inAction:Actions)=>{seed = Reducer(seed, inAction)}];
     return <IsoContext.Provider value={binding}>{children}</IsoContext.Provider>;
 };
 export const useIso =()=> React.useContext(IsoContext);

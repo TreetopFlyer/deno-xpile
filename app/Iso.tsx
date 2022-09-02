@@ -96,24 +96,29 @@ export const Reducer =(inState:State, inAction:Actions)=>
 };
 
 const Util = {
-    Loader: async(url:string):Promise<[data:string|false, error:boolean]>=>
+    Loader: async(inURL:string, inDispatcher:(inAction:Actions)=>void):Promise<PayloadDataReplace>=>
     {
         let error = false;
         let text:false|string = false;
+
+        inDispatcher({type:"DataAdd", payload:inURL});
         try
         {
-            const response = await fetch(url);
+            const response = await fetch(inURL);
             text = await response.text();
             if(response.status !== 200)
             {
-                error = true;
+                throw text;
             }   
         }
         catch(e:unknown)
         {
             error = true;
         }
-        return [text, error];
+
+        const payload = [inURL, text, error] as PayloadDataReplace;
+        inDispatcher({type:"DataReplace", payload:payload});
+        return payload;
     }
 };
 
@@ -133,29 +138,16 @@ export const useIso =()=>
 {
     const [state, dispatch] = React.useContext(IsoContext);
     return {
+        Client: state.Client,
         Metas:()=>{},
         Fetch:(url:string):CacheRecord=>
         {
             const match:CacheRecord|null = state.Data[url];
             if(!match)
             {
-                dispatch({type:"DataAdd", payload:url});
-                const pending = Util.Loader(url).then(response=>
-                {
-                    const payload = [url, ...response] as PayloadDataReplace;
-                    dispatch({type:"DataReplace", payload:payload});
-                    return payload;
-                });
-                if(!state.Client)
-                {
-                    state.Queue.push(pending);
-                }
-                return {
-                    Data: false,
-                    Error: false,
-                    Expiry: 0,
-                    Pending: true
-                };
+                const pending = Util.Loader(url, dispatch);
+                if(!state.Client){ state.Queue.push(pending); }
+                return { Data: false, Error: false, Expiry: 0, Pending: true };
             }
             else
             {

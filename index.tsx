@@ -1,9 +1,9 @@
 import React from "react";
 import ReactDOMServer from "react-dom/server";
-import App, { PreloadObject } from "./app/App.tsx";
+import App from "./app/App.tsx";
 import { serve } from "std/http/server.ts";
 import importMap from "./imports.json" assert { type: "json" };
-import { IsoContext, InitialState } from "./app/Iso.tsx";
+import { InitialState } from "./app/Iso.tsx";
 
 const location = Deno.env.get("DENO_DIR") + "/gen/file/" + Deno.cwd().replace(":", "").replaceAll("\\", "/") + "/";
 
@@ -76,9 +76,6 @@ serve(async (inRequest:Request) =>
     else
     {
 
-        PreloadObject.path = url.pathname;
-        PreloadObject.client = false;
-
         let bake = ReactDOMServer.renderToString(<App iso={InitialState}/>);
         let count = 0;
         while(InitialState.Queue.length)
@@ -99,7 +96,6 @@ serve(async (inRequest:Request) =>
 
         const page = await ReactDOMServer.renderToReadableStream(<html>
             <head>
-                <title>{PreloadObject.meta.title}</title>
                 <meta name="viewport" content="width=device-width, initial-scale=1"/>
                 <meta name="description" content="prerendered stuff!"/>
                 <style dangerouslySetInnerHTML={{__html:tailwind.textContent}}/>
@@ -111,12 +107,7 @@ serve(async (inRequest:Request) =>
                 <script type="module" dangerouslySetInnerHTML={{__html:`
 import {createElement as h} from "react";
 import {hydrateRoot} from "react-dom/client";
-import App, { PreloadObject } from "./app/App.tsx";
-
-PreloadObject.path = "${url.pathname}";
-PreloadObject.client = true;
-PreloadObject.meta = ${JSON.stringify(PreloadObject.meta)};
-PreloadObject.data = ${JSON.stringify(PreloadObject.data)};
+import App from "./app/App.tsx";
 
 const iso = ${JSON.stringify(InitialState)};
 iso.Client = true;

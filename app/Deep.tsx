@@ -10,17 +10,9 @@ export default ()=>
     const path = useNavigation();
     const highlight =(inPath:string)=> path.pathname == inPath ? "bg-red-500" : "bg-black";
 
-    const fetchURL = "https://randomuser.me/api/?arg="+path.pathname;
-    const profile = useIsoFetch(fetchURL);
-    const getName =()=> 
-    {
-        const name = profile.json.results[0].name;
-        return `(${name.title}) ${name.first} ${name.last}`;
-    };
+    const { Fetch } = useIso();
 
-    const [state, dispatch] = useIso();
-
-    dispatch({type:"MetaMerge", payload:{title:"Reducer-based Title!"}});
+    const status = Fetch("https://randomuser.me/api/?page="+path.pathname);
 
     return <div className="p-2 border">
         <nav>
@@ -28,10 +20,8 @@ export default ()=>
             <a className={`text-white p-2 ${highlight("/about")}`} href="/about">About</a>
             <a className={`text-white p-2 ${highlight("/blog")}`} href="/blog">Blog</a>
         </nav> 
-        <h1 className="p-10 border">{state.Path}</h1>
-        <h3 className="font-xl">{fetchURL}</h3>
-        <div>
-            { profile.data && getName()}
+        <div className="p-4 border border-red-500">
+            {status.Data}
         </div>
         { path.pathname == "/blog" && <div>
                 { meta({title:"Blog Title"}) }

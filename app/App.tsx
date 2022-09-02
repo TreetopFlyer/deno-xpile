@@ -1,6 +1,6 @@
 import React from "react";
 import Deep from "./Deep.tsx";
-import { IsoProvider, InitialState } from "./Iso.tsx";
+import { State, IsoProvider, InitialState } from "./Iso.tsx";
 
 export type NavigationEvent = { canTransition: boolean, destination:{url:string}, transitionWhile: ( arg:void )=>void };
 export type NavigationBinding = (type:string, handler:(event:NavigationEvent)=>void)=>void;
@@ -130,7 +130,7 @@ export const useIsoFetch =(inURL:string)=>
     return { data: getPre, dataUpdate: setPre, error: getErr, json: getPre ? JSON.parse(getPre) : false }
 };
 
-const App =()=>
+const App =({iso}:{iso?:State})=>
 {
     const routeBinding = React.useState(new URL("https://amber"+PreloadObject.path));
     React.useEffect(()=>
@@ -143,18 +143,11 @@ const App =()=>
         } 
     }, []);
 
-
-    const { data, error, json } = useIsoFetch("https://catfact.ninja/fact");
-
     const [countGet, countSet] = React.useState(3);
     return <NavigationContext.Provider value={routeBinding}>
         <PreloadContext.Provider value={PreloadMethods}> 
-            <IsoProvider seed={InitialState}>
+            <IsoProvider seed={iso??InitialState}>
                 <div>
-                    <h1 className="font-black text-slate-300">
-                        {data && json.fact}
-                        {error && "sorry, there was an error getting cat facts"}
-                    </h1>
                     <h2>le app</h2>
                     <button onClick={()=>countSet(countGet+1)}>{countGet}</button>
                     <Deep/>

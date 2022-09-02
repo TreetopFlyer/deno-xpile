@@ -33,6 +33,27 @@ for await (const filePath of FS.walk(location, {exts:["tsx.js"]}))
 
 const tailwind = TwindServer.getStyleTagProperties(sheet);
 
+/*
+let asyncWhile =async()=>
+{
+    let count = 0;
+    
+    while(count<5)
+    {
+        count ++;
+        console.log("loop start", count);
+        await new Promise((accept)=>
+        {
+            setTimeout(()=>
+            {
+                accept("done"); console.log("timeout", count);
+            }, 4000);
+        });
+        console.log("loop stop", count);
+    }
+};
+*/
+
 serve(async (inRequest:Request) =>
 {
     const url = new URL(inRequest.url);
@@ -58,10 +79,9 @@ serve(async (inRequest:Request) =>
         PreloadObject.path = url.pathname;
         PreloadObject.client = false;
 
-        console.log("pass pre");
-        let bake = ReactDOMServer.renderToString(<App/>);
+        let bake = ReactDOMServer.renderToString(<App iso={InitialState}/>);
         let count = 0;
-        while(PreloadObject.queue.length)
+        while(InitialState.Queue.length)
         {
             count ++;
             console.log("pass", count);
@@ -69,14 +89,13 @@ serve(async (inRequest:Request) =>
             {
                 break;
             }
-            await Promise.all(PreloadObject.queue);
-            PreloadObject.queue = [];
-            bake = ReactDOMServer.renderToString(<App/>);
+            console.log(`listening for ${InitialState.Queue.length} promises: `, InitialState.Data);
+            await Promise.all(InitialState.Queue);
+            console.log(`promises all done ${InitialState.Queue.length} promises: `, InitialState.Data);
+            InitialState.Queue = [];
+            bake = ReactDOMServer.renderToString(<App iso={InitialState}/>);
         }
 
-        console.log("done preloading", PreloadObject.data);
-
-        console.log("Iso InitialState", IsoContext);
 
         const page = await ReactDOMServer.renderToReadableStream(<html>
             <head>
@@ -99,7 +118,10 @@ PreloadObject.client = true;
 PreloadObject.meta = ${JSON.stringify(PreloadObject.meta)};
 PreloadObject.data = ${JSON.stringify(PreloadObject.data)};
 
-hydrateRoot(document.querySelector("#app"), h(App));
+const iso = ${JSON.stringify(InitialState)};
+iso.Client = true;
+
+hydrateRoot(document.querySelector("#app"), h(App, {iso}));
 `}}/>
             </body>
         </html>);

@@ -1,15 +1,19 @@
+import { serveTls } from "https://deno.land/std@0.144.0/http/server.ts";
 import React from "react";
 
-type CacheRecord = { Data:false|string, Error:false|string, Expiry:number, Pending?:Promise<string> }
-type KeyedMeta = {[key:string]:string};
-type KeyedData = {[key:string]:CacheRecord};
-type State = { Meta:KeyedMeta, Data:KeyedData, Path:string, Client:boolean, Queue:Array<Promise<string>> };
-type Actions
+export type CacheRecord = { Data:false|string, Error:false|string, Expiry:number|false, Pending:boolean }
+export type KeyedMeta = {[key:string]:string};
+export type KeyedData = {[key:string]:CacheRecord};
+export type State = { Meta:KeyedMeta, Data:KeyedData, Path:string, Client:boolean, Queue:Array<Promise<PayloadDataReplace>> };
+export type PayloadDataReplace = [key:string, data:string|false, isError:boolean];
+export type PayloadDataAdd = string|[key:string, expiry:number];
+export type Actions
     = {type: "MetaReplace", payload: KeyedMeta }
     | {type: "MetaMerge",   payload: KeyedMeta }
-    | {type: "DataAdd",     payload: [string, RequestInit|undefined] }
+    | {type: "DataReplace", payload: PayloadDataReplace }
+    | {type: "DataAdd",     payload: PayloadDataAdd }
 
-type Binding = [State, React.Dispatch<Actions>];
+export type Binding = [State, React.Dispatch<Actions>];
 
 export const InitialState:State = {
     Meta:{},
@@ -19,9 +23,8 @@ export const InitialState:State = {
     Queue:[]
 };
 
-const Reducer =(inState:State, inAction:Actions)=>
+export const Reducer =(inState:State, inAction:Actions)=>
 {
-    console.log("Reducer called!");
     let output = inState;
     switch(inAction.type)
     {
@@ -33,29 +36,131 @@ const Reducer =(inState:State, inAction:Actions)=>
             break;
         case "DataAdd" :
         {
-            const [key, options] = inAction.payload;
+            let key:string, expiry:number|false;
+            if(Array.isArray(inAction.payload))
+            {
+                key = inAction.payload[0];
+                expiry = inAction.payload[1];
+            }
+            else
+            {
+                key = inAction.payload;
+                expiry = false;
+            }
             const match:CacheRecord|undefined = inState.Data[key];
             if(!match)
             {
-                const newRecord:CacheRecord = {
-                    Data: false,
-                    Error: false,
-                    Expiry: 0,
-                    Pending: fetch(key, options).then(res=>res.text())
+                output =
+                {
+                    ...inState,
+                    Data:
+                    {
+                        ...inState.Data,
+                        [key]:
+                        {
+                            Data: false,
+                            Error: false,
+                            Expiry: expiry,
+                            Pending: true
+                        }
+                    }
                 };
-                output = { ...inState, Data: {...inState.Data, [key]:newRecord} };
+            }
+            break;
+        }
+        case "DataReplace" :
+        {
+            const [key, text, isError] = inAction.payload as [string, string, boolean];
+            const match:CacheRecord|undefined = inState.Data[key];
+            if(match)
+            {
+                const newRecord = isError ? { Pending: false, Error: text} : { Pending: false, Data: text };
+                output =
+                {
+                    ...inState,
+                    Data:
+                    {
+                        ...inState.Data,
+                        [key]:
+                        {
+                            ...match,
+                            ...newRecord
+                        }
+                    }
+                };
             }
         }
-
     }
-    console.log(output);
+    //console.log(output);
     return output;
-}
+};
+
+const Util = {
+    Loader: async(url:string):Promise<[data:string|false, error:boolean]>=>
+    {
+        let error = false;
+        let text:false|string = false;
+        try
+        {
+            const response = await fetch(url);
+            text = await response.text();
+            if(response.status !== 200)
+            {
+                error = true;
+            }   
+        }
+        catch(e:unknown)
+        {
+            error = true;
+        }
+        return [text, error];
+    }
+};
 
 export const IsoContext:React.Context<Binding> = React.createContext([InitialState, inAction=>{}]);
 export const IsoProvider =({seed, children}:{seed:State, children:JSX.Element})=>
 {
-    const binding:Binding = seed.Client ? React.useReducer(Reducer, seed) : [seed, (inAction:Actions)=>{seed = Reducer(seed, inAction)}];
+    const binding:Binding = seed.Client ? React.useReducer(Reducer, seed) : [seed, (inAction:Actions)=>
+    {
+        const clone = Reducer(seed, inAction);
+        seed.Data = clone.Data;
+        seed.Meta = clone.Meta;
+        seed.Path = clone.Path;
+    }];
     return <IsoContext.Provider value={binding}>{children}</IsoContext.Provider>;
 };
-export const useIso =()=> React.useContext(IsoContext);
+export const useIso =()=>
+{
+    const [state, dispatch] = React.useContext(IsoContext);
+    return {
+        Metas:()=>{},
+        Fetch:(url:string):CacheRecord=>
+        {
+            const match:CacheRecord|null = state.Data[url];
+            if(!match)
+            {
+                dispatch({type:"DataAdd", payload:url});
+                const pending = Util.Loader(url).then(response=>
+                {
+                    const payload = [url, ...response] as PayloadDataReplace;
+                    dispatch({type:"DataReplace", payload:payload});
+                    return payload;
+                });
+                if(!state.Client)
+                {
+                    state.Queue.push(pending);
+                }
+                return {
+                    Data: false,
+                    Error: false,
+                    Expiry: 0,
+                    Pending: true
+                };
+            }
+            else
+            {
+                return match;
+            }
+        }
+    };
+};

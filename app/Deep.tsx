@@ -3,11 +3,7 @@ import { useMetas, useRoute, useFetch } from "./Iso.tsx";
 
 const PartBlog =()=>
 {
-    const [metasGet, metasSet] = useMetas();
-    React.useEffect(()=>
-    {   
-        metasSet({Title:"Blog!"})
-    }, []);
+    useMetas({Title:"Blog!"});
 
     return <div>
         <h3 className="text-xl font(black sans) p-4">Blog!</h3>
@@ -17,11 +13,7 @@ const PartBlog =()=>
 
 const PartAbout =()=>
 {
-    const [metasGet, metasSet] = useMetas();
-    React.useEffect(()=>
-    {   
-        metasSet({Title:"About!"});
-    }, []);
+    useMetas({Title:"About!"});
 
     return <div>
         <h3 className="text-xl font(black sans) p-4">About!</h3>
@@ -32,8 +24,7 @@ const PartAbout =()=>
 
 export default ()=>
 {
-    const [metasGet, metasSet] = useMetas();
-    const [routeGet, routeSet] = useRoute();
+    const routeGet = useRoute();
 
     const folder = routeGet.Parts?.length ? routeGet.Parts[0] : "";
     const status = useFetch("https://randomuser.me/api/?page="+folder);

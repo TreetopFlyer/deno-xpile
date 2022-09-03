@@ -76,8 +76,6 @@ serve(async (inRequest:Request) =>
             bake = ReactDOMServer.renderToString(<App iso={isoModel}/>);
         }
 
-        console.log(isoModel);
-
         const page = await ReactDOMServer.renderToReadableStream(<html>
             <head>
                 <title>{isoModel.Meta.Title??""}</title>

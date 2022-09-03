@@ -81,26 +81,34 @@ export const IsoProvider =({seed, children}:{seed:State, children:JSX.Element[]}
     return <IsoContext.Provider value={binding}>{children}</IsoContext.Provider>;
 };
 
-export const useRoute =():[path:Path, updater:(route:URL)=>void]=>
+export function useRoute(arg:Path):void;
+export function useRoute():Path;
+export function useRoute(arg?:Path):Path|void
 {   
     const [state, dispatch] = React.useContext(IsoContext);
-    const setter = (inRoute:URL)=>
+    if(arg)
     {
-        dispatch({type:"PathReplace", payload:PathParse(inRoute)});
-        return null;
+        const action:Actions = {type:"PathReplace", payload: arg };
+        state.Client ? React.useEffect(()=>dispatch(action), []) : dispatch(action);
     }
-    return [state.Path, setter];
-};
-export const useMetas =():[metas:KeyedMeta, updater:(metas:KeyedMeta)=>void]=>
+    else
+    {
+        return state.Path;
+    }
+}
+
+export function useMetas(arg:KeyedMeta):void;
+export function useMetas():KeyedMeta;
+export function useMetas(arg?:KeyedMeta):KeyedMeta|void
 {   
     const [state, dispatch] = React.useContext(IsoContext);
-    const setter = (inMeta:KeyedMeta)=>
+    if(arg)
     {
-        dispatch({type:"MetaReplace", payload: inMeta });
-        return null;
-    };
-    return [state.Meta, setter];
-};
+        const action:Actions = {type:"MetaReplace", payload: arg };
+        state.Client ? React.useEffect(()=>dispatch(action), []) : dispatch(action);
+    }
+    return state.Meta;
+}
 export const useFetch =(url:string):CacheRecord=>
 {
     const [state, dispatch] = React.useContext(IsoContext);

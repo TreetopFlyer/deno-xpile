@@ -81,40 +81,36 @@ export const IsoProvider =({seed, children}:{seed:State, children:JSX.Element[]}
     return <IsoContext.Provider value={binding}>{children}</IsoContext.Provider>;
 };
 
-export const useIso =()=>
+export const useRoute =():[path:Path, updater:(route:URL)=>void]=>
+{   
+    const [state, dispatch] = React.useContext(IsoContext);
+    const setter = (route:URL)=>
+    {
+        dispatch({type:"PathReplace", payload:PathParse(route)});
+    }
+    return [state.Path, setter];
+};
+export const useMetas =():[metas:KeyedMeta, updater:(metas:KeyedMeta, replace?:boolean)=>void]=>
+{   
+    const [state, dispatch] = React.useContext(IsoContext);
+    const setter = (inMeta:KeyedMeta, replace?:boolean)=>
+    {
+        dispatch({type:"MetaReplace", payload: replace ? inMeta : {...state.Meta, ...inMeta} });
+    };
+    return [state.Meta, setter];
+};
+export const useFetch =(url:string):CacheRecord=>
 {
     const [state, dispatch] = React.useContext(IsoContext);
-    return {
-        Client: state.Client,
-        Route:():[path:Path, updater:(route:URL)=>void]=>
-        {   
-            const setter = (route:URL)=>
-            {
-                dispatch({type:"PathReplace", payload:PathParse(route)});
-            }
-            return [state.Path, setter];
-        },
-        Metas:():[metas:KeyedMeta, updater:(metas:KeyedMeta, replace?:boolean)=>void]=>
-        {   
-            const setter = (inMeta:KeyedMeta, replace?:boolean)=>
-            {
-                dispatch({type:"MetaReplace", payload: replace ? inMeta : {...state.Meta, ...inMeta} });
-            };
-            return [state.Meta, setter];
-        },
-        Fetch:(url:string):CacheRecord=>
-        {
-            const match:CacheRecord|null = state.Data[url];
-            if(!match)
-            {
-                const pending = Loader(url, dispatch);
-                if(!state.Client){ state.Queue.push(pending); }
-                return { Data: false, Error: false, Expiry: 0, Pending: true };
-            }
-            else
-            {
-                return match;
-            }
-        }
-    };
+    const match:CacheRecord|null = state.Data[url];
+    if(!match)
+    {
+        const pending = Loader(url, dispatch);
+        if(!state.Client){ state.Queue.push(pending); }
+        return { Data: false, Error: false, Expiry: 0, Pending: true };
+    }
+    else
+    {
+        return match;
+    }
 };

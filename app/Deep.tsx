@@ -1,10 +1,9 @@
 import React from "react";
-import { useIso } from "./Iso.tsx";
+import { useMetas, useRoute, useFetch } from "./Iso.tsx";
 
 const PartBlog =()=>
 {
-    const { Fetch, Metas, Route } = useIso();
-    const [metasGet, metasSet] = Metas();
+    const [metasGet, metasSet] = useMetas();
 
     {metasSet({Title:"Blog!"})}
     return <div>
@@ -14,12 +13,11 @@ const PartBlog =()=>
 
 export default ()=>
 {
-    const { Fetch, Metas, Route } = useIso();
-    const [metasGet, metasSet] = Metas();
-    const [routeGet, routeSet] = Route();
+    const [metasGet, metasSet] = useMetas();
+    const [routeGet, routeSet] = useRoute();
 
     const folder = routeGet.Parts?.length ? routeGet.Parts[0] : "";
-    const status = Fetch("https://randomuser.me/api/?page="+folder);
+    const status = useFetch("https://randomuser.me/api/?page="+folder);
 
     const highlight =(inPath:string)=> folder == inPath ? "bg-red-500" : "bg-black";
 

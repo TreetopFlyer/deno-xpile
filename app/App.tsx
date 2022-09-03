@@ -1,6 +1,6 @@
 import React from "react";
 import Deep from "./Deep.tsx";
-import { type State, IsoProvider, useIso } from "./Iso.tsx";
+import { type State, IsoProvider, useMetas, useRoute } from "./Iso.tsx";
 
 export type NavigationEvent = { canTransition: boolean, destination:{url:string}, transitionWhile: ( arg:void )=>void };
 export type NavigationBinding = (type:string, handler:(event:NavigationEvent)=>void)=>void;
@@ -8,9 +8,8 @@ export type Navigation = { addEventListener:NavigationBinding, removeEventListen
 
 const Effects =()=>
 {
-    const { Metas, Route } = useIso();
-    const [metasGet, metasSet] = Metas();
-    const [routeGet, routeSet] = Route();
+    const [metasGet, metasSet] = useMetas();
+    const [routeGet, routeSet] = useRoute();
 
     React.useEffect(()=>
     {
@@ -35,12 +34,12 @@ const App =({iso}:{iso:State})=>
 {
     const [countGet, countSet] = React.useState(3);
     return <IsoProvider seed={iso}>
-            <Effects/>
-            <h2>le app</h2>
-            <button onClick={()=>countSet(countGet+1)}>{countGet}</button>
-            <Deep/>
-        </IsoProvider>;
-}
+        <Effects/>
+        <h2>le app</h2>
+        <button onClick={()=>countSet(countGet+1)}>{countGet}</button>
+        <Deep/>
+    </IsoProvider>;
+};
 
 
 export default App;

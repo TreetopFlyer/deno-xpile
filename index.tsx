@@ -3,7 +3,7 @@ import ReactDOMServer from "react-dom/server";
 import App from "./app/App.tsx";
 import { serve } from "std/http/server.ts";
 import importMap from "./imports.json" assert { type: "json" };
-import { InitialState } from "./app/Iso.tsx";
+import { PathParse, State } from "./app/Iso.tsx";
 
 const location = Deno.env.get("DENO_DIR") + "/gen/file/" + Deno.cwd().replace(":", "").replaceAll("\\", "/") + "/";
 
@@ -31,34 +31,12 @@ for await (const filePath of FS.walk(location, {exts:["tsx.js"]}))
     }
 }
 
-const tailwind = TwindServer.getStyleTagProperties(sheet);
-
-/*
-let asyncWhile =async()=>
-{
-    let count = 0;
-    
-    while(count<5)
-    {
-        count ++;
-        console.log("loop start", count);
-        await new Promise((accept)=>
-        {
-            setTimeout(()=>
-            {
-                accept("done"); console.log("timeout", count);
-            }, 4000);
-        });
-        console.log("loop stop", count);
-    }
-};
-*/
+const tailwind = TwindServer.getStyleTagProperties(sheet).textContent;
 
 serve(async (inRequest:Request) =>
 {
     const url = new URL(inRequest.url);
     const path = url.pathname.substring(1).toLowerCase();
-    console.log("--", inRequest.url, "--");
     if(path == "favicon.ico"){return new Response("404", {status:404, headers:{"content-type": "application/javascript; charset=utf-8"}});}
     if(path.startsWith("app/"))
     {
@@ -76,32 +54,39 @@ serve(async (inRequest:Request) =>
     else
     {
 
-        let bake = ReactDOMServer.renderToString(<App iso={InitialState}/>);
+        const isoModel:State = {
+            Meta:{},
+            Data:{},
+            Path:PathParse(url),
+            Client:false,
+            Queue:[]
+        }
+
+        let bake = ReactDOMServer.renderToString(<App iso={isoModel}/>);
         let count = 0;
-        while(InitialState.Queue.length)
+        while(isoModel.Queue.length)
         {
             count ++;
-            console.log("pass", count);
             if(count > 5)
             {
                 break;
             }
-            console.log(`listening for ${InitialState.Queue.length} promises: `, InitialState.Data);
-            await Promise.all(InitialState.Queue);
-            console.log(`promises all done ${InitialState.Queue.length} promises: `, InitialState.Data);
-            InitialState.Queue = [];
-            bake = ReactDOMServer.renderToString(<App iso={InitialState}/>);
+            await Promise.all(isoModel.Queue);
+            isoModel.Queue = [];
+            bake = ReactDOMServer.renderToString(<App iso={isoModel}/>);
         }
 
+        console.log(isoModel);
 
         const page = await ReactDOMServer.renderToReadableStream(<html>
             <head>
+                <title>{isoModel.Meta.Title??""}</title>
+                <link rel="canonical" href={isoModel.Path.Parts.join("/")}></link>
                 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-                <meta name="description" content="prerendered stuff!"/>
-                <style dangerouslySetInnerHTML={{__html:tailwind.textContent}}/>
+                <meta name="description" content={isoModel.Meta.Description??""}/>
+                <style dangerouslySetInnerHTML={{__html:tailwind}}/>
                 <script type="importmap" dangerouslySetInnerHTML={{__html:JSON.stringify(importMap)}}/>
-            </head>{`
-            `}
+            </head>
             <body>
                 <div id="app" dangerouslySetInnerHTML={{__html:bake}}></div>
                 <script type="module" dangerouslySetInnerHTML={{__html:`
@@ -109,7 +94,7 @@ import {createElement as h} from "react";
 import {hydrateRoot} from "react-dom/client";
 import App from "./app/App.tsx";
 
-const iso = ${JSON.stringify(InitialState)};
+const iso = ${JSON.stringify(isoModel)};
 iso.Client = true;
 
 hydrateRoot(document.querySelector("#app"), h(App, {iso}));

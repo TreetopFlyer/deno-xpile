@@ -1,37 +1,45 @@
 import React from "react";
 import Deep from "./Deep.tsx";
-import { State, IsoProvider, InitialState } from "./Iso.tsx";
+import { type State, IsoProvider, useIso } from "./Iso.tsx";
 
 export type NavigationEvent = { canTransition: boolean, destination:{url:string}, transitionWhile: ( arg:void )=>void };
 export type NavigationBinding = (type:string, handler:(event:NavigationEvent)=>void)=>void;
 export type Navigation = { addEventListener:NavigationBinding, removeEventListener:NavigationBinding };
-export const NavigationContext = React.createContext([new URL("https://default"), (inURL:URL)=>{}]);
-export const useNavigation =()=> React.useContext(NavigationContext)[0];
 
-
-const App =({iso}:{iso?:State})=>
+const Effects =()=>
 {
-    const routeBinding = React.useState(new URL("https://amber"));
+    const { Metas, Route } = useIso();
+    const [metasGet, metasSet] = Metas();
+    const [routeGet, routeSet] = Route();
+
     React.useEffect(()=>
     {
-        if(iso.Client && navigation)
+        console.log("Metas Changed", metasGet.Title);
+        document.title = metasGet.Title??"";
+    }, [metasGet.Title]);
+    
+    React.useEffect(()=>
+    {
+        if(navigation)
         {
-            const handler = (e:NavigationEvent) => e.transitionWhile( routeBinding[1](new URL(e.destination.url)) );
+            const handler = (e:NavigationEvent) => e.transitionWhile( routeSet(new URL(e.destination.url)) );
             navigation.addEventListener("navigate", handler);
             return ()=>navigation.removeEventListener("navigate", handler);
-        } 
+        }
     }, []);
 
+    return null;
+};
+
+const App =({iso}:{iso:State})=>
+{
     const [countGet, countSet] = React.useState(3);
-    return <NavigationContext.Provider value={routeBinding}>
-        <IsoProvider seed={iso??InitialState}>
-            <div>
-                <h2>le app</h2>
-                <button onClick={()=>countSet(countGet+1)}>{countGet}</button>
-                <Deep/>
-            </div>
-        </IsoProvider>
-    </NavigationContext.Provider>;
+    return <IsoProvider seed={iso}>
+            <Effects/>
+            <h2>le app</h2>
+            <button onClick={()=>countSet(countGet+1)}>{countGet}</button>
+            <Deep/>
+        </IsoProvider>;
 }
 
 

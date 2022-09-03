@@ -24,9 +24,9 @@ const PartAbout =()=>
 
 export default ()=>
 {
-    const routeGet = useRoute();
+    const [routeGet] = useRoute();
 
-    const folder = routeGet.Parts?.length ? routeGet.Parts[0] : "";
+    const folder = routeGet.Parts.length ? routeGet.Parts[0] : "";
     const status = useFetch("https://randomuser.me/api/?page="+folder);
 
     const highlight =(inPath:string)=> folder == inPath ? "bg-red-500" : "bg-black";

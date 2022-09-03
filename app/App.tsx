@@ -7,10 +7,10 @@ export type NavigationBinding = (type:string, handler:(event:NavigationEvent)=>v
 export type Navigation = { addEventListener:NavigationBinding, removeEventListener:NavigationBinding };
 
 
-const NavigationHandler = (e:NavigationEvent) => e.transitionWhile( useRoute(PathParse(new URL(e.destination.url))) );
 const Effects =()=>
 {
     const metasGet = useMetas();
+    const [, routeSet] = useRoute();
 
     React.useEffect(()=>
     {
@@ -22,6 +22,10 @@ const Effects =()=>
     {
         if(navigation)
         {
+            const NavigationHandler = (e:NavigationEvent) =>
+            {
+                e.transitionWhile( routeSet(PathParse(new URL(e.destination.url))) );
+            }
             navigation.addEventListener("navigate", NavigationHandler);
             return ()=>navigation.removeEventListener("navigate", NavigationHandler);
         }

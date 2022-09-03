@@ -81,20 +81,11 @@ export const IsoProvider =({seed, children}:{seed:State, children:JSX.Element[]}
     return <IsoContext.Provider value={binding}>{children}</IsoContext.Provider>;
 };
 
-export function useRoute(arg:Path):void;
-export function useRoute():Path;
-export function useRoute(arg?:Path):Path|void
+
+export function useRoute():[get:Path, set:(path:Path)=>void]
 {   
     const [state, dispatch] = React.useContext(IsoContext);
-    if(arg)
-    {
-        const action:Actions = {type:"PathReplace", payload: arg };
-        state.Client ? React.useEffect(()=>dispatch(action), []) : dispatch(action);
-    }
-    else
-    {
-        return state.Path;
-    }
+    return [state.Path, (arg:Path)=>dispatch({type:"PathReplace", payload: arg })];
 }
 
 export function useMetas(arg:KeyedMeta):void;

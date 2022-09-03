@@ -4,12 +4,31 @@ import { useMetas, useRoute, useFetch } from "./Iso.tsx";
 const PartBlog =()=>
 {
     const [metasGet, metasSet] = useMetas();
+    React.useEffect(()=>
+    {   
+        metasSet({Title:"Blog!"})
+    }, []);
 
-    {metasSet({Title:"Blog!"})}
     return <div>
-        <p>the blog</p>
+        <h3 className="text-xl font(black sans) p-4">Blog!</h3>
+        <p>blog section</p>
     </div>;
-}
+};
+
+const PartAbout =()=>
+{
+    const [metasGet, metasSet] = useMetas();
+    React.useEffect(()=>
+    {   
+        metasSet({Title:"About!"});
+    }, []);
+
+    return <div>
+        <h3 className="text-xl font(black sans) p-4">About!</h3>
+        <p>about section</p>
+    </div>;
+};
+
 
 export default ()=>
 {
@@ -34,10 +53,6 @@ export default ()=>
             </>
         </div>
         { folder == "blog" && <PartBlog/>}
-        { folder == "about" && <div>
-            {metasSet({Title:"About!"})}
-            <p>about page</p>
-            <p>welcome.</p>
-        </div>}
-    </div>
+        { folder == "about" && <PartAbout/>}
+    </div>;
 }

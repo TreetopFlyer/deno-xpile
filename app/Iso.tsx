@@ -30,15 +30,15 @@ const Reducer =(inState:State, inAction:Actions)=>
     switch(inAction.type)
     {
         case "PathReplace" :
-            output = {...inState, Path: inAction.payload};
+            output = {...inState, Path:{...inState.Path, Parts:inAction.payload.Parts}};
             break;
         case "MetaReplace" :
-            output = {...inState, Meta:{...inAction.payload}};
+            output = {...inState, Meta:inAction.payload};
             break;
         case "DataReplace" :
             output = { ...inState, Data: { ...inState.Data, [inAction.payload[0]]: inAction.payload[1] } };
     }
-    console.log("at reducer", inAction.type, inAction.payload);
+    console.log("at reducer", inAction, output);
     return output;
 };
 
@@ -84,18 +84,20 @@ export const IsoProvider =({seed, children}:{seed:State, children:JSX.Element[]}
 export const useRoute =():[path:Path, updater:(route:URL)=>void]=>
 {   
     const [state, dispatch] = React.useContext(IsoContext);
-    const setter = (route:URL)=>
+    const setter = (inRoute:URL)=>
     {
-        dispatch({type:"PathReplace", payload:PathParse(route)});
+        dispatch({type:"PathReplace", payload:PathParse(inRoute)});
+        return null;
     }
     return [state.Path, setter];
 };
-export const useMetas =():[metas:KeyedMeta, updater:(metas:KeyedMeta, replace?:boolean)=>void]=>
+export const useMetas =():[metas:KeyedMeta, updater:(metas:KeyedMeta)=>void]=>
 {   
     const [state, dispatch] = React.useContext(IsoContext);
-    const setter = (inMeta:KeyedMeta, replace?:boolean)=>
+    const setter = (inMeta:KeyedMeta)=>
     {
-        dispatch({type:"MetaReplace", payload: replace ? inMeta : {...state.Meta, ...inMeta} });
+        dispatch({type:"MetaReplace", payload: inMeta });
+        return null;
     };
     return [state.Meta, setter];
 };

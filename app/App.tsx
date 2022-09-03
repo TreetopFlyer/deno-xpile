@@ -32,6 +32,7 @@ const Effects =()=>
 
 const App =({iso}:{iso:State})=>
 {
+    console.log("=== app rendering ===");
     const [countGet, countSet] = React.useState(3);
     return <IsoProvider seed={iso}>
         <Effects/>

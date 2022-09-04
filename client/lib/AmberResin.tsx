@@ -38,7 +38,6 @@ const Reducer =(inState:State, inAction:Actions)=>
         case "DataReplace" :
             output = { ...inState, Data: { ...inState.Data, [inAction.payload[0]]: inAction.payload[1] } };
     }
-    console.log("at reducer", inAction, output);
     return output;
 };
 
@@ -69,7 +68,7 @@ export const PathParse =(route:URL)=>
 }
 
 export const IsoContext:React.Context<IsoBinding> = React.createContext([InitialState, inAction=>{}]);
-export const IsoProvider =({seed, children}:{seed:State, children:JSX.Element[]})=>
+export const IsoProvider =({seed, children}:{seed:State, children:React.ReactNode})=>
 {
     const binding:IsoBinding = seed.Client ? React.useReducer(Reducer, seed) : [seed, (inAction:Actions)=>
     {

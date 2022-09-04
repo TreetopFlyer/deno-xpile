@@ -4,6 +4,8 @@
         "react": "https://esm.sh/react@18.2.0",
         "react-dom/": "https://esm.sh/react-dom@18.2.0/",
         "esm/": "https://esm.sh/",
-        "std/": "https://deno.land/std@0.144.0/"
+        "std/": "https://deno.land/std@0.144.0/",
+        "amber-server": "./client/lib/AmberServer.tsx",
+        "amber-resin":"./client/lib/AmberResin.tsx"
     }
 }

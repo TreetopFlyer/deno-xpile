@@ -1,0 +1,7 @@
+{
+    "tasks": {
+        "go": "DENO_DIR=./.deno deno run -A --unstable --watch ./server/Start.tsx"
+    },
+    "importMap": "./imports.json",
+    "compilerOptions": {"lib": ["deno.window", "dom"]}
+}

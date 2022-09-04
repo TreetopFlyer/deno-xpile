@@ -1,9 +1,0 @@
-{
-    "tasks": {
-        "go": "DENO_DIR=./.deno deno run -A --unstable --watch index.tsx",
-        "dbg": "DENO_DIR=./.deno deno run -A --unstable --inspect index.tsx",
-        "bake": "DENO_DIR=./.deno deno cache --reload index.tsx"
-    },
-    "importMap": "./imports.json",
-    "compilerOptions": {"lib": ["deno.window", "dom"]}
-}

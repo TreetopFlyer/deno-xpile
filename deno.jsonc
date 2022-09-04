@@ -1,6 +1,6 @@
 {
     "tasks": {
-        "go": "DENO_DIR=./.deno deno run -A --unstable --watch ./server/Start.tsx"
+        "go": "DENO_DIR=./.deno deno run -A --watch ./client/lib/AmberCLI.tsx Start.tsx"
     },
     "importMap": "./imports.json",
     "compilerOptions": {"lib": ["deno.window", "dom"]}

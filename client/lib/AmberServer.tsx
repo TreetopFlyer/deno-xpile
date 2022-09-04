@@ -1,15 +1,12 @@
 import React from "react";
 import ReactDOMServer from "react-dom/server";
-import { serve } from "std/http/server.ts";
-import * as FS from "std/fs/mod.ts";
-import * as Twind from "esm/twind";
-import * as TwindServer from "esm/twind/shim/server";
-import { type State, PathParse, IsoProvider } from "amber-resin";
+import { serve } from "https://deno.land/std@0.144.0/http/server.ts";
+import * as FS from "https://deno.land/std@0.144.0/fs/mod.ts";
+import * as Twind from "https://esm.sh/twind";
+import * as TwindServer from "https://esm.sh/twind/shim/server";
+import { type State, PathParse, IsoProvider } from "./AmberResin.tsx";
 
 const location = Deno.env.get("DENO_DIR") + "/gen/file/" + Deno.cwd().replace(":", "").replaceAll("\\", "/") + "/";
-console.log(Deno.cwd());
-console.log(location);
-console.log(import.meta.url);
 
 const sheet = TwindServer.virtualSheet();
 const parse = Twind.create({ sheet: sheet, preflight: true, theme: {}, plugins: {}, mode: "silent" }).tw;
@@ -32,13 +29,23 @@ for await (const filePath of FS.walk(location, {exts:["tsx.js"]}))
 }
 const tailwind = TwindServer.getStyleTagProperties(sheet).textContent;
 
-export default ({App, Map}:{App:()=>JSX.Element, Map:unknown})=>
+
+
+export default async({Start, Import}:{Start:string, Import:string})=>
 {
+    const dir = "file://"+Deno.cwd().replaceAll("\\", "/");
+    const appImport = await import(dir+"/client/"+Start);
+    const App:()=>JSX.Element = appImport.default;
+
     serve(async (inRequest:Request) =>
     {
         const url = new URL(inRequest.url);
         const path = url.pathname.substring(1);
-        if(path.startsWith("client/"))
+        if(path.startsWith("static/"))
+        {
+            return new Response(path, {status:200, headers:{"content-type": "application/javascript; charset=utf-8"}});
+        }
+        else if(path.startsWith("client/"))
         {
             const mappedPath = location+path+".js";
             console.log("serving code file", mappedPath);
@@ -86,14 +93,14 @@ export default ({App, Map}:{App:()=>JSX.Element, Map:unknown})=>
                     <meta name="viewport" content="width=device-width, initial-scale=1"/>
                     <meta name="description" content={isoModel.Meta.Description??""}/>
                     <style dangerouslySetInnerHTML={{__html:tailwind}}/>
-                    <script type="importmap" dangerouslySetInnerHTML={{__html:JSON.stringify(Map)}}/>
+                    <script type="importmap" dangerouslySetInnerHTML={{__html:Import}}/>
                 </head>
                 <body>
                     <div id="app" dangerouslySetInnerHTML={{__html:bake}}></div>
                     <script type="module" dangerouslySetInnerHTML={{__html:
             `import {createElement as h} from "react";
             import {hydrateRoot} from "react-dom/client";
-            import App from "./client/Start.tsx";
+            import App from "./client/${Start}";
             import { IsoProvider } from "amber-resin";
             
             const iso = ${JSON.stringify(isoModel)};

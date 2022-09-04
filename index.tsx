@@ -3,7 +3,7 @@ import ReactDOMServer from "react-dom/server";
 import App from "./app/App.tsx";
 import { serve } from "std/http/server.ts";
 import importMap from "./imports.json" assert { type: "json" };
-import { PathParse, State } from "./app/Iso.tsx";
+import { type State, PathParse, IsoProvider } from "./app/Amber.tsx";
 
 const location = Deno.env.get("DENO_DIR") + "/gen/file/" + Deno.cwd().replace(":", "").replaceAll("\\", "/") + "/";
 
@@ -62,7 +62,7 @@ serve(async (inRequest:Request) =>
             Queue:[]
         }
 
-        let bake = ReactDOMServer.renderToString(<App iso={isoModel}/>);
+        let bake = ReactDOMServer.renderToString(<IsoProvider seed={isoModel}><App/></IsoProvider>);
         let count = 0;
         while(isoModel.Queue.length)
         {
@@ -73,7 +73,7 @@ serve(async (inRequest:Request) =>
             }
             await Promise.all(isoModel.Queue);
             isoModel.Queue = [];
-            bake = ReactDOMServer.renderToString(<App iso={isoModel}/>);
+            bake = ReactDOMServer.renderToString(<IsoProvider seed={isoModel}><App/></IsoProvider>);
         }
 
         const page = await ReactDOMServer.renderToReadableStream(<html>
@@ -91,11 +91,15 @@ serve(async (inRequest:Request) =>
 import {createElement as h} from "react";
 import {hydrateRoot} from "react-dom/client";
 import App from "./app/App.tsx";
+import { IsoProvider } from "./app/Amber.tsx";
 
 const iso = ${JSON.stringify(isoModel)};
 iso.Client = true;
 
-hydrateRoot(document.querySelector("#app"), h(App, {iso}));
+hydrateRoot(
+    document.querySelector("#app"),
+    h(IsoProvider, {seed:iso}, h(App))
+);
 `}}/>
             </body>
         </html>);

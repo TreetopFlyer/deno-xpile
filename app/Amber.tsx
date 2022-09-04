@@ -78,7 +78,10 @@ export const IsoProvider =({seed, children}:{seed:State, children:JSX.Element[]}
         seed.Meta = clone.Meta;
         seed.Path = clone.Path;
     }];
-    return <IsoContext.Provider value={binding}>{children}</IsoContext.Provider>;
+    return <IsoContext.Provider value={binding}>
+        <Effects/>
+        {children}
+    </IsoContext.Provider>;
 };
 
 
@@ -114,4 +117,24 @@ export const useFetch =(url:string):CacheRecord=>
     {
         return match;
     }
+};
+
+
+type NavigationEvent = { canTransition: boolean, destination:{url:string}, transitionWhile: ( arg:void )=>void };
+const Effects =()=>
+{
+    const metasGet = useMetas();
+    const [, routeSet] = useRoute();
+
+    React.useEffect(()=>{ document.title = metasGet.Title??""; }, [metasGet.Title]);
+    React.useEffect(()=>
+    {
+        if(navigation)
+        {
+            const NavigationHandler = (e:NavigationEvent) => e.transitionWhile( routeSet(PathParse(new URL(e.destination.url))) );
+            navigation.addEventListener("navigate", NavigationHandler);
+            return ()=>navigation.removeEventListener("navigate", NavigationHandler);
+        }
+    }, []);
+    return null;
 };

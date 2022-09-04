@@ -1,5 +1,5 @@
 import React from "react";
-import { useMetas, useRoute, useFetch } from "./Iso.tsx";
+import { useMetas, useRoute, useFetch } from "./Amber.tsx";
 
 const PartBlog =()=>
 {

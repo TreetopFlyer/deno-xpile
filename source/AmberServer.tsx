@@ -9,43 +9,42 @@ import MIMELUT from "./mime.json" assert {type:"json"};
 
 const location = Deno.env.get("DENO_DIR") + "/gen/file/" + Deno.cwd().replace(":", "").replaceAll("\\", "/") + "/";
 
-const sheet = TwindServer.virtualSheet();
-const parse = Twind.create({ sheet: sheet, preflight: true, theme: {}, plugins: {}, mode: "silent" }).tw;
-const leave = [ "__defineGetter__", "__defineSetter__", "__lookupGetter__", "__lookupSetter__", "hasOwnProperty", "isPrototypeOf", "propertyIsEnumerable", "valueOf", "toLocaleString" ];
-for await (const filePath of FS.walk(location, {exts:["tsx.js", "jsx.js", "ts.js"]}))
-{
-    const fileText = await Deno.readTextFile(filePath.path);
-    const m = fileText.match(/[^<>\[\]\(\)|&"'`\.\s]*[^<>\[\]\(\)|&"'`\.\s:]/g);
-    if (m)
-    {
-        for (const c of m)
-        {
-            if (leave.indexOf(c) === -1)
-            {
-                try { parse(c); }
-                catch (e) { console.log(`Error: Failed to handle the pattern '${c}'`); }
-            }
-        }
-    }
-}
-const tailwind = TwindServer.getStyleTagProperties(sheet).textContent;
-
-
-
-export default async({Start, Import}:{Start:string, Import:string})=>
+export default async({Source, Static, Client, Launch, Import, Deploy}:{Source:string, Static:string, Client:string, Launch:string, Import:string, Deploy:number})=>
 {
     const dir = "file://"+Deno.cwd().replaceAll("\\", "/");
-    const fullPath = dir+"/client/"+Start;
+    const fullPath = dir+"/"+Client+Launch;
     console.log(fullPath);
     const appImport = await import(fullPath);
     const App:()=>JSX.Element = appImport.default;
+
+    const sheet = TwindServer.virtualSheet();
+    const parse = Twind.create({ sheet: sheet, preflight: true, theme: {}, plugins: {}, mode: "silent" }).tw;
+    const leave = [ "__defineGetter__", "__defineSetter__", "__lookupGetter__", "__lookupSetter__", "hasOwnProperty", "isPrototypeOf", "propertyIsEnumerable", "valueOf", "toLocaleString" ];
+    for await (const filePath of FS.walk(location+Client, {exts:["tsx.js", "jsx.js", "ts.js"]}))
+    {
+        const fileText = await Deno.readTextFile(filePath.path);
+        const m = fileText.match(/[^<>\[\]\(\)|&"'`\.\s]*[^<>\[\]\(\)|&"'`\.\s:]/g);
+        if (m)
+        {
+            for (const c of m)
+            {
+                if (leave.indexOf(c) === -1)
+                {
+                    try { parse(c); }
+                    catch (e) { console.log(`Error: Failed to handle the pattern '${c}'`); }
+                }
+            }
+        }
+    }
+    const tailwind = TwindServer.getStyleTagProperties(sheet).textContent;
 
     serve(async (inRequest:Request) =>
     {
         const url = new URL(inRequest.url);
         const path = url.pathname.substring(1);
-        if(path.startsWith("static/"))
+        if(path.startsWith(Static))
         {
+            console.log("serving static file", path);
             try
             {
                 const text = await Deno.open(path);
@@ -58,7 +57,7 @@ export default async({Start, Import}:{Start:string, Import:string})=>
                 return new Response(e, {status:404, headers:{"content-type": "application/javascript; charset=utf-8"}});
             }
         }
-        else if(path.startsWith("client/") || path.startsWith("source/"))
+        else if(path.startsWith(Client) || path.startsWith(Source))
         {
             const mappedPath = location+path+".js";
             console.log("serving code file", mappedPath);
@@ -74,7 +73,7 @@ export default async({Start, Import}:{Start:string, Import:string})=>
         }
         else
         {
-    
+            console.log("rendering page");
             const isoModel:State = {
                 Meta:{},
                 Data:{},
@@ -113,7 +112,7 @@ export default async({Start, Import}:{Start:string, Import:string})=>
                     <script type="module" dangerouslySetInnerHTML={{__html:
             `import {createElement as h} from "react";
             import {hydrateRoot} from "react-dom/client";
-            import App from "./client/${Start}";
+            import App from "./${Client}${Launch}";
             import { IsoProvider } from "amber";
             
             const iso = ${JSON.stringify(isoModel)};
@@ -132,5 +131,5 @@ export default async({Start, Import}:{Start:string, Import:string})=>
             return new Response(page, {status:200, headers:{"content-type": "text/html; charset=utf-8"}});
         }
     }
-    , {port:3333});
+    , {port:Deploy});
 };

@@ -1,5 +1,5 @@
 import React from "react";
-import { useMetas, useRoute, useFetch } from "amber-resin";
+import { useMetas, useRoute, useFetch, Switch, Case } from "amber-resin";
 
 const PartBlog =()=>
 {
@@ -43,8 +43,20 @@ export default ()=>
                 {status.Data}
             </>
         </div>
-        { folder == "" && <img src="static/logo.png"/> }
-        { folder == "blog" && <PartBlog/>}
-        { folder == "about" && <PartAbout/>}
-    </div>;
-}
+			<Switch value={routeGet.Parts[0]}>
+				<Case value={""}>
+					<img src="static/logo.png" />
+				</Case>
+				<Case value={"blog"}>
+					<PartBlog />
+				</Case>
+				<Case value={"about"}>
+					<PartAbout />
+				</Case>
+				<Case>
+					<p>404 i guess</p>
+				</Case>
+			</Switch>
+		</div>
+	);
+};

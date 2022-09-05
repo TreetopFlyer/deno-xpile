@@ -1,7 +1,17 @@
 {
-    "tasks": {
-        "go": "DENO_DIR=./.deno deno run -A --watch ./client/lib/AmberCLI.tsx Start.tsx"
-    },
-    "importMap": "./imports.json",
-    "compilerOptions": {"lib": ["deno.window", "dom"]}
+	"tasks": {
+		"go": "DENO_DIR=./.deno deno run -A --watch ./client/lib/AmberCLI.tsx Start.tsx"
+	},
+	"importMap": "./imports.json",
+	"compilerOptions": { "lib": ["deno.window", "dom"] },
+	"lint": { "files": { "exclude": [".deno/"] } },
+	"test": { "files": { "exclude": [".deno/"] } },
+	"fmt": {
+		"files": { "exclude": [".deno/"] },
+		"options": {
+			"useTabs": true,
+			"lineWidth": 200,
+			"indentWidth": 1
+		}
+	}
 }

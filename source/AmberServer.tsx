@@ -6,19 +6,33 @@ import * as Twind from "https://esm.sh/twind";
 import * as TwindServer from "https://esm.sh/twind/shim/server";
 import { type State, PathParse, IsoProvider } from "./AmberClient.tsx";
 import MIMELUT from "./mime.json" assert {type:"json"};
+import twind from "../twind.ts";
 
 const location = Deno.env.get("DENO_DIR") + "/gen/file/" + Deno.cwd().replace(":", "").replaceAll("\\", "/") + "/";
 
-export default async({Source, Static, Client, Launch, Import, Deploy}:{Source:string, Static:string, Client:string, Launch:string, Import:string, Deploy:number})=>
+export default async({Themed, Source, Static, Client, Launch, Import, Deploy}:{Themed:string, Source:string, Static:string, Client:string, Launch:string, Import:string, Deploy:number})=>
 {
     const dir = "file://"+Deno.cwd().replaceAll("\\", "/");
-    const fullPath = dir+"/"+Client+Launch;
-    console.log(fullPath);
-    const appImport = await import(fullPath);
+
+    const appImport = await import(dir+"/"+Client+Launch);
     const App:()=>JSX.Element = appImport.default;
 
+    let twindImport = {
+        default:{theme:{}, plugins:{}}
+    };
+    try
+    {
+        twindImport = await import(dir+"/"+Themed);
+        console.log("twind configuration found");
+    }
+    catch(e)
+    {
+        console.log("no configuration found, using defaults");
+    }
+    
+
     const sheet = TwindServer.virtualSheet();
-    const parse = Twind.create({ sheet: sheet, preflight: true, theme: {}, plugins: {}, mode: "silent" }).tw;
+    const parse = Twind.create({ sheet: sheet, preflight: true, theme: twindImport.default?.theme??{}, plugins: twindImport.default?.plugins??{}, mode: "silent" }).tw;
     const leave = [ "__defineGetter__", "__defineSetter__", "__lookupGetter__", "__lookupSetter__", "hasOwnProperty", "isPrototypeOf", "propertyIsEnumerable", "valueOf", "toLocaleString" ];
     for await (const filePath of FS.walk(location+Client, {exts:["tsx.js", "jsx.js", "ts.js"]}))
     {

@@ -7,6 +7,7 @@ if(Deno.args[0] == "init")
 else if(Deno.args[0] == "start")
 {
     const options = {
+        Themed: "twind.ts",
         Config: "deno.jsonc",
         Source: "source/",
         Static: "static/",
@@ -26,6 +27,7 @@ else if(Deno.args[0] == "start")
             else if(key == "--client"){ options.Client = value; }
             else if(key == "--launch"){ options.Launch = value; }
             else if(key == "--config"){ options.Config = value; }
+            else if(key == "--themed"){ options.Themed = value; }
             else if(key == "--deploy"){ options.Deploy = parseInt(value); }
         }
     }

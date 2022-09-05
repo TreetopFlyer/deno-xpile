@@ -1,7 +1,7 @@
 # Amber
 ## SPA && SEO
 
-Ah, meta-frameworks! There's just *so many* for you to **learn**. But what if you're... *lazy*?
+Meta-frameworks! There's just *so many* for you to **learn**. But what if you're... *lazy*?
 
 Then you're my kind of people because Amber is perhaps simplest way to get your ideas *isomorphized* and roaming out in the wild.
 
@@ -38,15 +38,16 @@ The client and server need to be on the same version of React. Scaffolding does 
 2. An `importMap` set within the config file
 3. Both `react` and `react-dom/*` named imports within the importMap
 
-To work with the (configurable) filesystem conventions: 
+To work with the default (configurable) filesystem conventions: 
 - Static assets go into `static/` (configurable `--static=dir/`)
-- .TSX/.JSX files etc. go into `client/`  (configurable `--client=dir/`)
+- .TS/.TSX/.JSX files etc. go into `client/`  (configurable `--client=dir/`)
 - The app shell/entry is `client/App.tsx`  (configurable `--launch=file.tsx`)
 
 The Amber hooks available:
-- **useFetch** `const { Data, Error, Pending } = useFetch("https://randomuser.me/api/");`
+- **useFetch** `const { Data, Error, Expiry, Pending } = useFetch("https://randomuser.me/api/");`
 - **useRoute** `const [routeGet, routeSet] = useRoute();`
 - **useMetas** `useMetas({Title:"Home Page!" Description:"A search engine will see this im sure", Image:"static/og.jpg"});`
+
 ------
 
 Prior Art:

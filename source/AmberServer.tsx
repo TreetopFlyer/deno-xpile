@@ -4,7 +4,7 @@ import { serve } from "https://deno.land/std@0.144.0/http/server.ts";
 import * as FS from "https://deno.land/std@0.144.0/fs/mod.ts";
 import * as Twind from "https://esm.sh/twind";
 import * as TwindServer from "https://esm.sh/twind/shim/server";
-import { type State, PathParse, IsoProvider } from "./AmberResin.tsx";
+import { type State, PathParse, IsoProvider } from "./AmberClient.tsx";
 import MIMELUT from "./mime.json" assert {type:"json"};
 
 const location = Deno.env.get("DENO_DIR") + "/gen/file/" + Deno.cwd().replace(":", "").replaceAll("\\", "/") + "/";
@@ -35,7 +35,9 @@ const tailwind = TwindServer.getStyleTagProperties(sheet).textContent;
 export default async({Start, Import}:{Start:string, Import:string})=>
 {
     const dir = "file://"+Deno.cwd().replaceAll("\\", "/");
-    const appImport = await import(dir+"/client/"+Start);
+    const fullPath = dir+"/client/"+Start;
+    console.log(fullPath);
+    const appImport = await import(fullPath);
     const App:()=>JSX.Element = appImport.default;
 
     serve(async (inRequest:Request) =>
@@ -56,7 +58,7 @@ export default async({Start, Import}:{Start:string, Import:string})=>
                 return new Response(e, {status:404, headers:{"content-type": "application/javascript; charset=utf-8"}});
             }
         }
-        else if(path.startsWith("client/"))
+        else if(path.startsWith("client/") || path.startsWith("source/"))
         {
             const mappedPath = location+path+".js";
             console.log("serving code file", mappedPath);
@@ -112,7 +114,7 @@ export default async({Start, Import}:{Start:string, Import:string})=>
             `import {createElement as h} from "react";
             import {hydrateRoot} from "react-dom/client";
             import App from "./client/${Start}";
-            import { IsoProvider } from "amber-resin";
+            import { IsoProvider } from "amber";
             
             const iso = ${JSON.stringify(isoModel)};
             iso.Client = true;

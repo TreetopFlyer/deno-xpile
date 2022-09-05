@@ -6,9 +6,9 @@
     "configurations": [
         {
             "request": "launch",
-            "name": "Launch Program",
+            "name": "Debug",
             "type": "node",
-            "program": "${workspaceFolder}/index.tsx",
+            "program": "/source/AmberCLI.tsx",
             "cwd": "${workspaceFolder}",
             "runtimeExecutable": "deno",
             "runtimeArgs": ["task", "dbg"],

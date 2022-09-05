@@ -1,6 +1,7 @@
 {
 	"tasks": {
-		"go": "DENO_DIR=./.deno deno run -A --watch ./client/lib/AmberCLI.tsx Start.tsx"
+		"go": "DENO_DIR=./.deno deno run -A --watch source/AmberCLI.tsx Start.tsx",
+		"dbg": "DENO_DIR=./.deno deno run -A --inspect source/AmberCLI.tsx Start.tsx"
 	},
 	"importMap": "./imports.json",
 	"compilerOptions": { "lib": ["deno.window", "dom"] },

@@ -5,13 +5,14 @@ import * as FS from "https://deno.land/std@0.144.0/fs/mod.ts";
 import * as Twind from "https://esm.sh/twind";
 import * as TwindServer from "https://esm.sh/twind/shim/server";
 import { type State, PathParse, IsoProvider } from "./AmberResin.tsx";
+import MIMELUT from "./mime.json" assert {type:"json"};
 
 const location = Deno.env.get("DENO_DIR") + "/gen/file/" + Deno.cwd().replace(":", "").replaceAll("\\", "/") + "/";
 
 const sheet = TwindServer.virtualSheet();
 const parse = Twind.create({ sheet: sheet, preflight: true, theme: {}, plugins: {}, mode: "silent" }).tw;
 const leave = [ "__defineGetter__", "__defineSetter__", "__lookupGetter__", "__lookupSetter__", "hasOwnProperty", "isPrototypeOf", "propertyIsEnumerable", "valueOf", "toLocaleString" ];
-for await (const filePath of FS.walk(location, {exts:["tsx.js"]}))
+for await (const filePath of FS.walk(location, {exts:["tsx.js", "jsx.js", "ts.js"]}))
 {
     const fileText = await Deno.readTextFile(filePath.path);
     const m = fileText.match(/[^<>\[\]\(\)|&"'`\.\s]*[^<>\[\]\(\)|&"'`\.\s:]/g);
@@ -43,7 +44,17 @@ export default async({Start, Import}:{Start:string, Import:string})=>
         const path = url.pathname.substring(1);
         if(path.startsWith("static/"))
         {
-            return new Response(path, {status:200, headers:{"content-type": "application/javascript; charset=utf-8"}});
+            try
+            {
+                const text = await Deno.open(path);
+                const ext:string = path.substring(path.lastIndexOf(".")) ?? "";
+                const type = (MIMELUT as {[key:string]:string})[ext] ?? "application/javascript";
+                return new Response(text.readable, {status:200, headers:{"content-type": `${type}; charset=utf-8`}});
+            }
+            catch(e)
+            {
+                return new Response(e, {status:404, headers:{"content-type": "application/javascript; charset=utf-8"}});
+            }
         }
         else if(path.startsWith("client/"))
         {
@@ -51,12 +62,12 @@ export default async({Start, Import}:{Start:string, Import:string})=>
             console.log("serving code file", mappedPath);
             try
             {
-                const text = await Deno.readTextFile(mappedPath);
-                return new Response(text, {status:200, headers:{"content-type": "application/javascript; charset=utf-8"}});
+                const text = await Deno.open(mappedPath);
+                return new Response(text.readable, {status:200, headers:{"content-type": "application/javascript; charset=utf-8"}});
             }
             catch(e)
             {
-                return new Response(mappedPath, {status:404, headers:{"content-type": "application/javascript; charset=utf-8"}});
+                return new Response(e, {status:404, headers:{"content-type": "application/javascript; charset=utf-8"}});
             }
         }
         else

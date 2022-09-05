@@ -43,6 +43,7 @@ export default ()=>
                 {status.Data}
             </>
         </div>
+        { folder == "" && <img src="static/logo.png"/> }
         { folder == "blog" && <PartBlog/>}
         { folder == "about" && <PartAbout/>}
     </div>;

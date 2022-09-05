@@ -78,7 +78,14 @@ export default async({Themed, Source, Static, Client, Launch, Import, Deploy}:{T
             try
             {
                 const text = await Deno.open(mappedPath);
-                return new Response(text.readable, {status:200, headers:{"content-type": "application/javascript; charset=utf-8"}});
+                return new Response(text.readable,
+                    {
+                        status:200,
+                        headers:
+                        {
+                            "content-type": "application/javascript; charset=utf-8"
+                        }
+                    });
             }
             catch(e)
             {

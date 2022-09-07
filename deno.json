@@ -1,10 +1,7 @@
 {
 	"importMap": "./imports.json",
 	"tasks": {
-		"go": "DENO_DIR=./.deno deno run -A --config=deno.json --watch http://localhost:4444/source/AmberRunner.tsx start --import=imports.json"
-   	},
-	"lint": { "files": { "exclude": [".deno/"] } },
-	"test": { "files": { "exclude": [".deno/"] } },
-	 "fmt": { "files": { "exclude": [".deno/"] }, "options": { "useTabs": true, "lineWidth": 200, "indentWidth": 1 }
-	}
+		"go": "deno run -A --watch source/AmberRunner.tsx start",
+		"go-remote": "deno run -A --config=deno.json --watch http://localhost:4444/source/AmberRunner.tsx start"
+   	}
 }

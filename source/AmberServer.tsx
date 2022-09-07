@@ -2,7 +2,7 @@ import React from "react";
 import ReactDOMServer from "react-dom/server";
 import { serve } from "https://deno.land/std@0.144.0/http/server.ts";
 import * as FS from "https://deno.land/std@0.144.0/fs/mod.ts";
-import * as ESBuild from "x/esbuild@v0.14.45/mod.js";
+import * as ESBuild from "https://deno.land/x/esbuild@v0.14.45/mod.js";
 import * as Twind from "https://esm.sh/twind";
 import * as TwindServer from "https://esm.sh/twind/shim/server";
 import { type State, PathParse, IsoProvider } from "./AmberClient.tsx";
@@ -11,8 +11,9 @@ import MIMELUT from "./mime.json" assert {type:"json"};
 
 export default async({Themed, Source, Static, Client, Launch, Import, Deploy}:{Themed:string, Source:string, Static:string, Client:string, Launch:string, Import:string, Deploy:number})=>
 {
-    const location = Deno.env.get("DENO_DIR") + "/gen/file/" + Deno.cwd().replace(":", "").replaceAll("\\", "/") + "/";
-    const dir = "file://"+Deno.cwd().replaceAll("\\", "/");
+    const dir = Deno.cwd();
+    const resp404 = new Response("404", {status:404, headers:{"content-type": "application/javascript; charset=utf-8"}});
+    const FilesParse:{[key:string]:string} = {};
 
     // load App and Shell
     let App = ()=>null;
@@ -50,7 +51,7 @@ export default async({Themed, Source, Static, Client, Launch, Import, Deploy}:{T
     }
     try
     {
-        const appImport = await import(dir+"/"+Client+Launch);
+        const appImport = await import(`file://${dir}/${Client+Launch}`);
         App = appImport.default;
         if(appImport.Shell)
         {
@@ -63,28 +64,36 @@ export default async({Themed, Source, Static, Client, Launch, Import, Deploy}:{T
     let twindImport = { default:{theme:{}, plugins:{}} };
     try
     {
-        twindImport = await import(dir+"/"+Themed);
+        twindImport = await import(`file://${dir}/${Themed}`);
     }
     catch(e) { console.log("no twind config found, using defaults."); }
     const sheet = TwindServer.virtualSheet();
     const parse = Twind.create({ sheet: sheet, preflight: true, theme: twindImport.default?.theme??{}, plugins: twindImport.default?.plugins??{}, mode: "silent" }).tw;
     const leave = [ "__defineGetter__", "__defineSetter__", "__lookupGetter__", "__lookupSetter__", "hasOwnProperty", "isPrototypeOf", "propertyIsEnumerable", "valueOf", "toLocaleString" ];
-    for await (const filePath of FS.walk(location+Client, {exts:["tsx.js", "jsx.js", "ts.js"]}))
+    
+    const xpile =async(inFolder:string):Promise<void>=>
     {
-        const fileText = await Deno.readTextFile(filePath.path);
-        const m = fileText.match(/[^<>\[\]\(\)|&"'`\.\s]*[^<>\[\]\(\)|&"'`\.\s:]/g);
-        if (m)
+        for await (const filePath of FS.walk(dir+"/"+inFolder, {exts:["js", "jsx", "ts", "tsx"]}))
         {
-            for (const c of m)
+            const fileText = await Deno.readTextFile(filePath.path);
+            const code:{code:string} = await ESBuild.transform(fileText, {loader:"tsx", /*sourcemap:"inline",*/ minify:true});
+            FilesParse[filePath.path.replaceAll("\\", "/").substring(dir.length+1)] = code.code;
+            const m = code.code.match(/[^<>\[\]\(\)|&"'`\.\s]*[^<>\[\]\(\)|&"'`\.\s:]/g);
+            if (m)
             {
-                if (leave.indexOf(c) === -1)
+                for (const c of m)
                 {
-                    try { parse(c); }
-                    catch (e) { console.log(`Error: Failed to handle the pattern '${c}'`); }
+                    if (leave.indexOf(c) === -1)
+                    {
+                        try { parse(c); }
+                        catch (e) { console.log(`Error: Failed to handle the pattern '${c}'`); }
+                    }
                 }
             }
         }
     }
+    await xpile(Client);
+    await xpile(Source);
     const tailwind = TwindServer.getStyleTagProperties(sheet).textContent;
 
     serve(async (inRequest:Request) =>
@@ -93,7 +102,6 @@ export default async({Themed, Source, Static, Client, Launch, Import, Deploy}:{T
         const path = url.pathname.substring(1);
         if(path.startsWith(Static))
         {
-            console.log("serving static file", path);
             try
             {
                 const text = await Deno.open(path);
@@ -103,33 +111,17 @@ export default async({Themed, Source, Static, Client, Launch, Import, Deploy}:{T
             }
             catch(e)
             {
-                return new Response(e, {status:404, headers:{"content-type": "application/javascript; charset=utf-8"}});
+                return resp404;
             }
         }
         else if(path.startsWith(Client) || path.startsWith(Source))
         {
-            const mappedPath = location+path+".js";
-            console.log("serving code file", mappedPath);
-            try
-            {
-                const text = await Deno.open(mappedPath);
-                return new Response(text.readable, { status:200, headers: { "content-type": "application/javascript; charset=utf-8" } });
-            }
-            catch(e)
-            {
-                return new Response(e, {status:404, headers:{"content-type": "application/javascript; charset=utf-8"}});
-            }
+            const check:string|undefined = FilesParse[path];
+            return check ? new Response(check, { status:200, headers: { "content-type": "application/javascript; charset=utf-8" } }) : resp404;
         }
         else
         {
-            console.log("rendering page");
-            const isoModel:State = {
-                Meta:{},
-                Data:{},
-                Path:PathParse(url),
-                Client:false,
-                Queue:[]
-            }
+            const isoModel:State = { Meta:{}, Data:{}, Path:PathParse(url), Client:false, Queue:[] }
     
             let bake = ReactDOMServer.renderToString(<IsoProvider seed={isoModel}><App/></IsoProvider>);
             let count = 0;

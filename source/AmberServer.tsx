@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOMServer from "react-dom/server";
 import { serve } from "https://deno.land/std@0.144.0/http/server.ts";
 import * as FS from "https://deno.land/std@0.144.0/fs/mod.ts";
+import * as Path from "https://deno.land/std@0.154.0/path/mod.ts";
 import * as ESBuild from "https://deno.land/x/esbuild@v0.14.45/mod.js";
 import * as Twind from "https://esm.sh/twind";
 import * as TwindServer from "https://esm.sh/twind/shim/server";
@@ -14,6 +15,32 @@ export default async({Themed, Source, Static, Client, Launch, Import, Deploy}:{T
     const dir = Deno.cwd();
     const resp404 = new Response("404", {status:404, headers:{"content-type": "application/javascript; charset=utf-8"}});
     const FilesParse:{[key:string]:string} = {};
+
+    // open amber client *on the remote* and parse it
+    const parts = import.meta.url.split("/");
+    parts[parts.length-1] = "AmberClient.tsx";
+    const path = parts.join("/");
+    console.log(`fetching ${path}`);
+    const amberClientFetch = await fetch(path);
+    const amberClientText = await amberClientFetch.text();
+    console.log(`fetched: ${amberClientText}`);
+    const amberClientParsed = await ESBuild.transform(amberClientText, {loader:"tsx", sourcemap:"inline", minify:true});
+    FilesParse["source/AmberClient.tsx"] = amberClientParsed.code;
+
+    // modify the supplied import map to point to the *remote* version of amber client instead of local
+    const importJSON = JSON.parse(Import);
+    for( let key in importJSON.imports)
+    {
+        const value = importJSON.imports[key];
+        console.log("at", key, "value is", value);
+        if(value.indexOf("source/AmberClient.tsx") != -1)
+        {
+            importJSON.imports[key] = "./source/AmberClient.tsx";
+            console.log("changing");
+        }
+    }
+    Import = JSON.stringify(importJSON);
+    console.log("result", Import);
 
     // load App and Shell
     let App = ()=>null;

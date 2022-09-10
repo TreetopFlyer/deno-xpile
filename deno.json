@@ -1,0 +1,8 @@
+{
+	"importMap": "./imports.json",
+	"tasks": {
+		"go": "deno run -A --watch source/AmberRunner.tsx start",
+		"go-remote": "DENO_DIR=./.deno deno run -A --config=deno.json --watch http://localhost:4444/source/AmberRunner.tsx start",
+		"fake-server": "deno run -A source/fake_server.tsx"
+   	}
+}

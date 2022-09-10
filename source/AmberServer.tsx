@@ -2,13 +2,11 @@ import React from "react";
 import ReactDOMServer from "react-dom/server";
 import { serve } from "https://deno.land/std@0.144.0/http/server.ts";
 import * as FS from "https://deno.land/std@0.144.0/fs/mod.ts";
-import * as Path from "https://deno.land/std@0.154.0/path/mod.ts";
 import * as ESBuild from "https://deno.land/x/esbuild@v0.14.45/mod.js";
 import * as Twind from "https://esm.sh/twind";
 import * as TwindServer from "https://esm.sh/twind/shim/server";
 import { type State, PathParse, IsoProvider } from "./AmberClient.tsx";
 import MIMELUT from "./mime.json" assert {type:"json"};
-
 
 export default async({Themed, Source, Static, Client, Launch, Import, Deploy}:{Themed:string, Source:string, Static:string, Client:string, Launch:string, Import:string, Deploy:number})=>
 {
@@ -20,10 +18,8 @@ export default async({Themed, Source, Static, Client, Launch, Import, Deploy}:{T
     const parts = import.meta.url.split("/");
     parts[parts.length-1] = "AmberClient.tsx";
     const path = parts.join("/");
-    console.log(`fetching ${path}`);
     const amberClientFetch = await fetch(path);
     const amberClientText = await amberClientFetch.text();
-    console.log(`fetched: ${amberClientText}`);
     const amberClientParsed = await ESBuild.transform(amberClientText, {loader:"tsx", sourcemap:"inline", minify:true});
     FilesParse["source/AmberClient.tsx"] = amberClientParsed.code;
 
@@ -100,28 +96,53 @@ export default async({Themed, Source, Static, Client, Launch, Import, Deploy}:{T
     
     const xpile =async(inFolder:string):Promise<void>=>
     {
+        console.log(`transpiling to memory everything in ${dir+"/"+inFolder}`);
         for await (const filePath of FS.walk(dir+"/"+inFolder, {exts:["js", "jsx", "ts", "tsx"]}))
         {
-            const fileText = await Deno.readTextFile(filePath.path);
-            const code:{code:string} = await ESBuild.transform(fileText, {loader:"tsx", /*sourcemap:"inline",*/ minify:true});
-            FilesParse[filePath.path.replaceAll("\\", "/").substring(dir.length+1)] = code.code;
-            const m = code.code.match(/[^<>\[\]\(\)|&"'`\.\s]*[^<>\[\]\(\)|&"'`\.\s:]/g);
-            if (m)
+            try
             {
-                for (const c of m)
+                const fileText = await Deno.readTextFile(filePath.path);
+                const code:{code:string} = await ESBuild.transform(fileText, {loader:"tsx", /*sourcemap:"inline",*/ minify:true});
+                FilesParse[filePath.path.replaceAll("\\", "/").substring(dir.length+1)] = code.code;
+                const m = code.code.match(/[^<>\[\]\(\)|&"'`\.\s]*[^<>\[\]\(\)|&"'`\.\s:]/g);
+                if (m)
                 {
-                    if (leave.indexOf(c) === -1)
+                    for (const c of m)
                     {
-                        try { parse(c); }
-                        catch (e) { console.log(`Error: Failed to handle the pattern '${c}'`); }
+                        if (leave.indexOf(c) === -1)
+                        {
+                            try { parse(c); }
+                            catch (e) { console.log(`Error: Failed to handle the pattern '${c}'`); }
+                        }
                     }
                 }
             }
+            catch(e){ console.log(`error transpiling ${filePath.path}`) }
         }
     }
-    await xpile(Client);
-    await xpile(Source);
+
+    try
+    {
+        await xpile(Client);
+    }
+    catch(e)
+    {
+        console.log(`No client directory "${Client}" found in "${dir}. No front-end code to work with!"`)
+    }
+    
+    try
+    {
+        await xpile(Source);
+        console.log(`Note you have a "source" directory "${Client}" in "${dir}. Are you working on Amber Core?"`)
+    }
+    catch(e)
+    {
+        console.log(`No "source" directory "${Source}" found in "${dir}. You are probably creating an Amber app, not working on Amber itself."`);
+    }
+    
     const tailwind = TwindServer.getStyleTagProperties(sheet).textContent;
+
+    console.log("Transpiling/tailwind complete");
 
     serve(async (inRequest:Request) =>
     {

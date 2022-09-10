@@ -5,7 +5,7 @@ type CloneChecker = {path:string, found:boolean, text:false|string};
 
 const baseDir = import.meta.url.split("/").slice(0, -2).join("/");
 
-const checkFor =async(inPath:string):Promise<CloneChecker>=>
+const checkFor =async(inPath:string, inContent?:string):Promise<CloneChecker>=>
 {
     const output:CloneChecker = {path:inPath, found:false, text:false};
     try
@@ -15,10 +15,18 @@ const checkFor =async(inPath:string):Promise<CloneChecker>=>
     }
     catch(e)
     {
-        const url = baseDir+"/"+inPath;
-        console.log(inPath, "doesnt exist yet downloading from", url);
-        const file = await fetch(url);
-        output.text = await file.text();
+        if(inContent)
+        {
+            output.text = inContent;
+        }
+        else
+        {
+            const url = baseDir+"/"+inPath;
+            console.log(inPath, "doesnt exist yet downloading from", url);
+            const file = await fetch(url);
+            output.text = await file.text();
+        }
+
     }
     return output;
 };
@@ -29,7 +37,14 @@ if(Deno.args[0] == "init")
         checkFor("client/App.tsx"),
         checkFor("client/Deep.tsx"),
         checkFor("static/Logo.svg"),
-        checkFor("deno.json"),
+        checkFor("deno.json", `{
+    "importMap": "./imports.json",
+    "tasks":
+    {
+        "go": "deno run -A --config=deno.json --watch ${baseDir}/source/AmberRunner.tsx start"
+    }
+}
+`),
         checkFor("imports.json"),
         checkFor("twind.ts"),
         checkFor(".vscode/settings.json")

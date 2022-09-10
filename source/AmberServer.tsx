@@ -16,7 +16,7 @@ export default async({Themed, Source, Static, Client, Launch, Import, Deploy}:{T
     const resp404 = new Response("404", {status:404, headers:{"content-type": "application/javascript; charset=utf-8"}});
     const FilesParse:{[key:string]:string} = {};
 
-    // open amber client *on the remote* and parse it
+    // open amber client *on the remote* and transpile it for the browser
     const parts = import.meta.url.split("/");
     parts[parts.length-1] = "AmberClient.tsx";
     const path = parts.join("/");
@@ -168,4 +168,6 @@ export default async({Themed, Source, Static, Client, Launch, Import, Deploy}:{T
         }
     }
     , {port:Deploy});
+
+    console.log("Amber running on port", Deploy);
 };

@@ -1,8 +1,53 @@
-import Server from "./AmberServer.tsx";
+
+import * as FS from "https://deno.land/std@0.144.0/fs/mod.ts";
+
+type CloneChecker = {path:string, found:boolean, text:false|string};
+
+const baseDir = import.meta.url.split("/").slice(0, -2).join("/");
+
+const checkFor =async(inPath:string):Promise<CloneChecker>=>
+{
+    const output:CloneChecker = {path:inPath, found:false, text:false};
+    try
+    {
+        await Deno.lstat(inPath);
+        output.found = true;
+    }
+    catch(e)
+    {
+        const url = baseDir+"/"+inPath;
+        console.log(inPath, "doesnt exist yet downloading from", url);
+        const file = await fetch(url);
+        output.text = await file.text();
+    }
+    return output;
+};
 
 if(Deno.args[0] == "init")
 {
- // scaffold
+    Promise.all([
+        checkFor("client/App.tsx"),
+        checkFor("client/Deep.tsx"),
+        checkFor("static/Logo.svg"),
+        checkFor("deno.json"),
+        checkFor("imports.json"),
+        checkFor("twind.ts"),
+        checkFor(".vscode/settings.json")
+    ]).then(values=>
+    {
+
+        console.log(baseDir);
+        const encoder = new TextEncoder();
+        values.forEach(async(checker)=>
+        {
+            if(!checker.found && checker.text)
+            {
+                console.log("wiritng file", checker.path);
+                await FS.ensureFile(checker.path);
+                Deno.writeFile(checker.path, encoder.encode(checker.text));
+            }
+        });
+    });
 }
 else if(Deno.args[0] == "start")
 {
@@ -36,6 +81,8 @@ else if(Deno.args[0] == "start")
     try { options.Import = await Deno.readTextFile(options.Import); }
     catch(e) { console.log(`Amber Start: (ERROR) Import map "${options.Import}" not found`); }
     
-    Server(options);
+    const amberServer = await import("./AmberServer.tsx");
+
+    amberServer.default(options);
 
 }

@@ -23,7 +23,11 @@ export default async({Themed, Source, Static, Client, Launch, Import, Deploy}:{T
     const amberClientParsed = await ESBuild.transform(amberClientText, {loader:"tsx", sourcemap:"inline", minify:true});
     FilesParse["source/AmberClient.tsx"] = amberClientParsed.code;
 
-    // modify the supplied import map to point to the *remote* version of amber client instead of local
+    
+    // After running `AmberClient.tsx init` the user's imports.json will have "amber" aliased to a remote URL.
+    // That will help them with typings while workingin the IDE.
+    // BUT after their instance starts and transpiles this remote file, we need to point to that instead so that means modifying the import map :(.
+    // if the remote URL has a transpiled file, this step could be skipped....
     const importJSON = JSON.parse(Import);
     for( let key in importJSON.imports)
     {
@@ -37,6 +41,7 @@ export default async({Themed, Source, Static, Client, Launch, Import, Deploy}:{T
     }
     Import = JSON.stringify(importJSON);
     console.log("result", Import);
+
 
     // load App and Shell
     let App = ()=>null;
@@ -72,24 +77,28 @@ export default async({Themed, Source, Static, Client, Launch, Import, Deploy}:{T
             </body>
         </html>;
     }
+
+    const appPath = `file://${dir}/${Client+Launch}`;
     try
     {
-        const appImport = await import(`file://${dir}/${Client+Launch}`);
+        const appImport = await import(appPath);
         App = appImport.default;
         if(appImport.Shell)
         {
             Shell = appImport.Shell;
         }
     }
-    catch(e) { console.log(`Launch file "${Launch}" cound not be found in Client directory "${Client}".`); }
+    catch(e) { console.log(e); console.log(`Launch file "${Launch}" cound not be found in Client directory "${appPath}".`); }
 
     //
     let twindImport = { default:{theme:{}, plugins:{}} };
+    const twindPath = `file://${dir}/${Themed}`;
     try
     {
-        twindImport = await import(`file://${dir}/${Themed}`);
+        twindImport = await import(twindPath);
+        console.log(`twind found at (${twindPath})`);
     }
-    catch(e) { console.log("no twind config found, using defaults."); }
+    catch(e) { console.log(`no twind config found at (${twindPath}), using defaults.`); }
     const sheet = TwindServer.virtualSheet();
     const parse = Twind.create({ sheet: sheet, preflight: true, theme: twindImport.default?.theme??{}, plugins: twindImport.default?.plugins??{}, mode: "silent" }).tw;
     const leave = [ "__defineGetter__", "__defineSetter__", "__lookupGetter__", "__lookupSetter__", "hasOwnProperty", "isPrototypeOf", "propertyIsEnumerable", "valueOf", "toLocaleString" ];
@@ -133,7 +142,7 @@ export default async({Themed, Source, Static, Client, Launch, Import, Deploy}:{T
     try
     {
         await xpile(Source);
-        console.log(`Note you have a "source" directory "${Client}" in "${dir}. Are you working on Amber Core?"`)
+        console.log(`Note you have a "source" directory "${Source}" in "${dir}. Are you working on Amber Core?"`)
     }
     catch(e)
     {

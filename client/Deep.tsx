@@ -62,7 +62,7 @@ export default ()=>
     </div>
         <Switch value={routeGet.Parts[0]}>
             <Case value={""}>
-                <img src="static/logo.png" />
+                <img src="static/Logo.svg" />
             </Case>
             <Case value={"blog"}>
                 <PartBlog />

@@ -36,8 +36,10 @@ if(Deno.args[0] == "init")
     Promise.all([
         checkFor("client/App.tsx"),
         checkFor("client/Deep.tsx"),
+        checkFor("client/Search.tsx"),
         checkFor("static/Logo.svg"),
-        checkFor("deno.json", `{
+        checkFor("deno.json", `
+{
     "importMap": "./imports.json",
     "tasks":
     {
@@ -45,7 +47,16 @@ if(Deno.args[0] == "init")
     }
 }
 `),
-        checkFor("imports.json"),
+        checkFor("imports.json", `
+{
+    "imports":
+    {
+                "react": "https://esm.sh/react@18.2.0",
+           "react-dom/": "https://esm.sh/react-dom@18.2.0/",
+                "amber": "${baseDir}/source/AmberClient.tsx"
+    }
+}
+`),
         checkFor("twind.ts"),
         checkFor(".vscode/settings.json")
     ]).then(values=>

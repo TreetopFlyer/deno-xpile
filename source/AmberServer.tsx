@@ -13,7 +13,7 @@ const resp404 = new Response("404", {status:404, headers:{"content-type": "appli
 const FilesParse:{[key:string]:string} = {};
 let socketRef:undefined|WebSocket;
 
-const Rebuild =async(Themed:string, Client:string, Source:string):Promise<void>=>
+const Rebuild =async(Themed:string, inFiles:Array<string>):Promise<string>=>
 {
     let twindImport = { default:{theme:{}, plugins:{}} };
     const twindPath = `file://${dir}/${Themed}`;
@@ -24,59 +24,44 @@ const Rebuild =async(Themed:string, Client:string, Source:string):Promise<void>=
     }
     catch(e) { console.log(`no twind config found at (${twindPath}), using defaults.`); }
     const sheet = TwindServer.virtualSheet();
-    const parse = Twind.create({ sheet: sheet, preflight: true, theme: twindImport.default?.theme??{}, plugins: twindImport.default?.plugins??{}, mode: "silent" }).tw;
+    const parse = Twind.create({ sheet: sheet, preflight: false, theme: twindImport.default?.theme??{}, plugins: twindImport.default?.plugins??{}, mode: "silent" }).tw;
     const leave = [ "__defineGetter__", "__defineSetter__", "__lookupGetter__", "__lookupSetter__", "hasOwnProperty", "isPrototypeOf", "propertyIsEnumerable", "valueOf", "toLocaleString" ];
     
-    const xpile =async(inFolder:string):Promise<void>=>
+    for(let i=0; i<inFiles.length; i++)
     {
-        console.log(`transpiling to memory everything in ${dir+"/"+inFolder}`);
-        for await (const filePath of FS.walk(dir+"/"+inFolder, {exts:["js", "jsx", "ts", "tsx"], includeDirs:false}))
+        const file = inFiles[i];
+        try
         {
-            try
+            const fileText = await Deno.readTextFile(file);
+            const code:{code:string} = await ESBuild.transform(fileText, {loader:"tsx", /*sourcemap:"inline",*/ minify:true});
+            FilesParse[file.replaceAll("\\", "/").substring(dir.length+1)] = code.code;
+            const m = code.code.match(/[^<>\[\]\(\)|&"'`\.\s]*[^<>\[\]\(\)|&"'`\.\s:]/g);
+            if (m)
             {
-                const fileText = await Deno.readTextFile(filePath.path);
-                const code:{code:string} = await ESBuild.transform(fileText, {loader:"tsx", /*sourcemap:"inline",*/ minify:true});
-                FilesParse[filePath.path.replaceAll("\\", "/").substring(dir.length+1)] = code.code;
-                const m = code.code.match(/[^<>\[\]\(\)|&"'`\.\s]*[^<>\[\]\(\)|&"'`\.\s:]/g);
-                if (m)
+                for (const c of m)
                 {
-                    for (const c of m)
+                    if (leave.indexOf(c) === -1)
                     {
-                        if (leave.indexOf(c) === -1)
-                        {
-                            try { parse(c); }
-                            catch (e) { console.log(`Error: Failed to handle the pattern '${c}'`); }
-                        }
+                        try { parse(c); }
+                        catch (e) { console.log(`Error: Failed to handle the pattern '${c}'`); }
                     }
                 }
             }
-            catch(e){ console.log(`error transpiling ${filePath.path}`) }
+            console.log(`transpiled ${file}.`);
+
+            /*
+            const command = ["deno", "cache", `${file}`];
+            console.log("COMMAND:", command);
+            const process = Deno.run({cmd:command});
+            await process.status();
+            */
         }
+        catch(e){ console.log(`error transpiling ${file}`) }
     }
 
-    try
-    {
-        await xpile(Client);
-    }
-    catch(e)
-    {
-        console.log(`No client directory "${Client}" found in "${dir}. No front-end code to work with!"`)
-    }
-    
-    try
-    {
-        await xpile(Source);
-        console.log(`Note you have a "source" directory "${Source}" in "${dir}. Are you working on Amber Core?"`)
-    }
-    catch(e)
-    {
-        console.log(`No "source" directory "${Source}" found in "${dir}. You are probably creating an Amber app, not working on Amber itself."`);
-    }
-    
-    FilesParse["static/tailwind.css"] = TwindServer.getStyleTagProperties(sheet).textContent;
-
-    console.log("Transpiling/tailwind complete");
-    socketRef?.send("refresh");
+    console.log(Object.keys(FilesParse));
+    return TwindServer.getStyleTagProperties(sheet).textContent.replaceAll("}.", `}
+.`);
 }
 
 export default async({Themed, Source, Static, Client, Launch, Import, Deploy}:{Themed:string, Source:string, Static:string, Client:string, Launch:string, Import:string, Deploy:number})=>
@@ -121,48 +106,41 @@ export default async({Themed, Source, Static, Client, Launch, Import, Deploy}:{T
                 <link rel="icon" type="image/x-icon" href="/static/favicon.ico"></link>
                 <meta name="viewport" content="width=device-width, initial-scale=1"/>
                 <meta name="description" content={isoModel.Meta.Description??""}/>
-                <style dangerouslySetInnerHTML={{__html:styles}}/>
+                <style id="tw-main" dangerouslySetInnerHTML={{__html:styles}}/>
+                <style id="tw-hmr"  dangerouslySetInnerHTML={{__html:FilesParse["client/rebuild.css"]??""}}/>
+                
                 <script type="importmap" dangerouslySetInnerHTML={{__html:importMap}}/>
             </head>
             <body>
                 <div id="app" dangerouslySetInnerHTML={{__html:bake}}></div>
                 <script type="module" dangerouslySetInnerHTML={{__html:
         `import {createElement as h} from "react";
-        import {hydrateRoot, createRoot} from "react-dom/client";
+        import {hydrateRoot} from "react-dom/client";
         import App from "./${clientFolder}${launchFile}";
         import { IsoProvider } from "amber";
         
-        const iso = ${JSON.stringify(isoModel)};
+        window.iso = ${JSON.stringify(isoModel)};
                     
-        const dom = document.querySelector("#app");
-
         hydrateRoot(
-            dom,
-            h(IsoProvider, {seed:iso},
+            document.querySelector("#app"),
+            h(IsoProvider, {seed:window.iso},
                 h(App)
             )
         );
 
-        const appRoot = createRoot(dom);
         const socket = new WebSocket('ws://localhost:3333/hmr');
         socket.addEventListener('message', (event) => {
 
             console.log('Message from server ', event.data);
-
-            import("./${clientFolder}${launchFile}?cache="+Math.random()).then(module=>
-            {
-                console.log("app module loaded", module);
-                appRoot.render(
-                    
-                    h(IsoProvider, {seed:iso},
-                        h(module.default)
-                    )
-                )
-            });
-
+            location.reload();
         });
 
         `}}/>
+            <script id="reloader" type="module"></script>
+            <form method="GET" action="?cache">
+                <input type="hidden" name="cacher"/>
+                <input type="submit"/>
+            </form>
             </body>
         </html>;
     }
@@ -180,7 +158,28 @@ export default async({Themed, Source, Static, Client, Launch, Import, Deploy}:{T
     catch(e) { console.log(e); console.log(`Launch file "${Launch}" cound not be found in Client directory "${appPath}".`); }
 
 
-    Rebuild(Themed, Client, Source);
+    const collectFiles:Array<string> = [];
+    const collectSettings = {exts:["js", "jsx", "ts", "tsx"], includeDirs:false}
+    try
+    {
+        for await (const filePath of FS.walk(dir+"/"+Client, collectSettings))
+        {
+            collectFiles.push(filePath.path);
+        }
+    }
+    catch(e){ console.log("no client directory found. (its cool tho)"); }
+
+    try
+    {
+        for await (const filePath of FS.walk(dir+"/"+Source, collectSettings))
+        {
+            collectFiles.push(filePath.path);
+        }
+    } catch(e){ console.log("no source directory found. (its cool tho)"); }
+
+    console.log(collectFiles);
+
+    FilesParse["client/tailwind.css"] = await Rebuild(Themed, collectFiles);
 
     serve(async (inRequest:Request) =>
     {
@@ -203,7 +202,10 @@ export default async({Themed, Source, Static, Client, Launch, Import, Deploy}:{T
         else if(path.startsWith(Client) || path.startsWith(Source))
         {
             const check:string|undefined = FilesParse[path];
-            return check ? new Response(check, { status:200, headers: { "content-type": "application/javascript; charset=utf-8" } }) : resp404;
+            return check ? new Response(check, { status:200, headers: {
+                "content-type": "application/javascript; charset=utf-8",
+                "cache-control": "no-cache,no-store"
+            } }) : resp404;
         }
         else if(path.startsWith("hmr"))
         {
@@ -244,7 +246,7 @@ export default async({Themed, Source, Static, Client, Launch, Import, Deploy}:{T
             
             isoModel.Client = true;
     
-            const page = await ReactDOMServer.renderToReadableStream(<Shell isoModel={isoModel} styles={FilesParse["static/tailwind.css"]??""} importMap={Import} bake={bake} clientFolder={Client} launchFile={Launch} />);
+            const page = await ReactDOMServer.renderToReadableStream(<Shell isoModel={isoModel} styles={FilesParse["client/tailwind.css"]??""} importMap={Import} bake={bake} clientFolder={Client} launchFile={Launch} />);
             return new Response(page, {status:200, headers:{"content-type": "text/html; charset=utf-8"}});
         }
     }
@@ -256,6 +258,7 @@ export default async({Themed, Source, Static, Client, Launch, Import, Deploy}:{T
     let waiting = false;
     let interrupted = false;
     let timer:undefined|number;
+    let filesChanged:Map<string, string> = new Map();
     const timerDone = ()=>
     {
         
@@ -269,7 +272,14 @@ export default async({Themed, Source, Static, Client, Launch, Import, Deploy}:{T
             waiting = false;
             interrupted = false;
             console.log("--timer done", waiting, interrupted);
-            Rebuild(Themed, Client, Source);
+            const list:string[] = [];
+            for(const key of filesChanged.keys())
+            {
+                list.push(key)
+            }
+            filesChanged = new Map();
+            console.log(list);
+            Rebuild(Themed, list).then(css=>FilesParse["client/rebuild.css"] = css).then(()=>socketRef?.send("refresh"));
         }
     };
     const startTimer =()=>
@@ -296,9 +306,14 @@ export default async({Themed, Source, Static, Client, Launch, Import, Deploy}:{T
         }
     };
 
-    const watcher = Deno.watchFs(".");
+    const watcher = Deno.watchFs(Client);
     for await (const event of watcher)
     {
+        event.paths.forEach(path => {
+            console.log("path format check", path);
+            filesChanged.set(path, event.kind);
+        });
+        
         registerChange();
     }
 };

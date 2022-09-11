@@ -22,21 +22,6 @@ const PartAbout =()=>
 };
 
 const Search = React.lazy(()=>import("./Search.tsx"));
-/*
-try
-{
-    let check = document.createElement;
-    console.log("were on the client");
-    const search = await import("./Search.tsx");
-    Search = search.default;
-}
-catch(e)
-{
-    console.log("were on the server");
-    //const search = await import("./Search.tsx");
-    //Search = search.default;
-}
-*/
 
 export default ()=>
 {
@@ -45,10 +30,10 @@ export default ()=>
     const folder = routeGet.Parts.length ? routeGet.Parts[0] : "";
     const status = useFetch("https://catfact.ninja/fact");
 
-    const highlight =(inPath:string)=> folder == inPath ? "bg-green-500" : "bg-black";
+    const highlight =(inPath:string)=> folder == inPath ? "bg-red-500" : "bg-black";
 
     return <div className="p-2 border">
-    <p className="p-4 border">{folder}</p>
+    <p className="p-4 border">3 {folder}</p>
     <nav>
         <a className={`text-white p-2 ${highlight("")}`} href="/">Home</a>
         <a className={`text-white p-2 ${highlight("about")}`} href="/about">About</a>

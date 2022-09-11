@@ -130,7 +130,13 @@ const Effects =()=>
     {
         if(navigation)
         {
-            const NavigationHandler = (e:NavigationEvent) => e.transitionWhile( routeSet(PathParse(new URL(e.destination.url))) );
+            const NavigationHandler = (e:NavigationEvent) =>
+            {
+                if(e.navigationType !== "reload")
+                {
+                    e.transitionWhile( routeSet(PathParse(new URL(e.destination.url))) );
+                }
+            };
             navigation.addEventListener("navigate", NavigationHandler);
             return ()=>navigation.removeEventListener("navigate", NavigationHandler);
         }

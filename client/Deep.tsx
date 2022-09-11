@@ -30,7 +30,7 @@ export default ()=>
     const folder = routeGet.Parts.length ? routeGet.Parts[0] : "";
     const status = useFetch("https://catfact.ninja/fact");
 
-    const highlight =(inPath:string)=> folder == inPath ? "bg-red-500" : "bg-black";
+    const highlight =(inPath:string)=> folder == inPath ? "bg-green-500" : "bg-black";
 
     return <div className="p-2 border">
     <p className="p-4 border">3 {folder}</p>

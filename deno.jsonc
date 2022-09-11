@@ -2,7 +2,7 @@
 	"importMap": "./imports.json",
 	"tasks": {
 		"test": "deno test",
-		"dev": "deno run -A -r source/AmberRunner.tsx start",
+		"dev": "deno run -A source/AmberRunner.tsx start",
 		"spoof-remote": "deno run -A -r source/fake_server.tsx",
 		
 		// when spoofing a remote server, note that we pass the appropriate import map

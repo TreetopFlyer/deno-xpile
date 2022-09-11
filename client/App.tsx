@@ -9,7 +9,7 @@ export default ()=>
     console.log("app rerender!")
 
     return <div>
-        <h2>le app? cool.. {dep}</h2>
+        <h2>le app????? cool.. {dep}</h2>
         
         <div className="border-4 no-t">
             <button onClick={()=>countSet(countGet+1)}>{countGet}</button>

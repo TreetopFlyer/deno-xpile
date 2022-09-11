@@ -49,7 +49,7 @@ const Rebuild =async(Themed:string, inFiles:Array<string>):Promise<string>=>
             }
             console.log(`transpiled ${file}.`);
 
-            /*
+            /* we need deno to re-val, not recache
             const command = ["deno", "cache", `${file}`];
             console.log("COMMAND:", command);
             const process = Deno.run({cmd:command});
@@ -115,23 +115,33 @@ export default async({Themed, Source, Static, Client, Launch, Import, Deploy}:{T
                 <div id="app" dangerouslySetInnerHTML={{__html:bake}}></div>
                 <script type="module" dangerouslySetInnerHTML={{__html:
         `import {createElement as h} from "react";
-        import {hydrateRoot} from "react-dom/client";
+        import {hydrateRoot, createRoot} from "react-dom/client";
         import App from "./${clientFolder}${launchFile}";
         import { IsoProvider } from "amber";
         
         window.iso = ${JSON.stringify(isoModel)};
                     
-        hydrateRoot(
-            document.querySelector("#app"),
-            h(IsoProvider, {seed:window.iso},
-                h(App)
-            )
-        );
+        const dom = document.querySelector("#app");
+        const app = h(IsoProvider, {seed:window.iso}, h(App));
+        const url = new URL(location.href);
+
+        if(url.searchParams.has("no-hydrate"))
+        {
+            console.log("NOT hydrating");
+            createRoot(dom).render(app);
+        }
+        else
+        {
+            console.log("hydrating");
+            hydrateRoot(dom, app);
+        }
 
         const socket = new WebSocket('ws://localhost:3333/hmr');
-        socket.addEventListener('message', (event) => {
-
+        socket.addEventListener('message', (event) =>
+        {
             console.log('Message from server ', event.data);
+            url.searchParams.set("no-hydrate", "true");
+            location.search = url.searchParams.toString();
             location.reload();
         });
 
@@ -232,7 +242,7 @@ export default async({Themed, Source, Static, Client, Launch, Import, Deploy}:{T
         else
         {
             const isoModel:State = { Meta:{}, Data:{}, Path:PathParse(url), Client:false, Queue:[] }
-    
+
             let bake = ReactDOMServer.renderToString(<IsoProvider seed={isoModel}><App/></IsoProvider>);
             let count = 0;
             while(isoModel.Queue.length)

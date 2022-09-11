@@ -119,10 +119,9 @@ export default async({Themed, Source, Static, Client, Launch, Import, Deploy}:{T
         import App from "./${clientFolder}${launchFile}";
         import { IsoProvider } from "amber";
         
-        window.iso = ${JSON.stringify(isoModel)};
-                    
+        const iso = ${JSON.stringify(isoModel)};      
         const dom = document.querySelector("#app");
-        const app = h(IsoProvider, {seed:window.iso}, h(App));
+        const app = h(IsoProvider, {seed:iso}, h(App));
         const url = new URL(location.href);
 
         if(url.searchParams.has("no-hydrate"))
@@ -136,7 +135,7 @@ export default async({Themed, Source, Static, Client, Launch, Import, Deploy}:{T
             hydrateRoot(dom, app);
         }
 
-        const socket = new WebSocket('ws://localhost:3333/hmr');
+        const socket = new WebSocket('ws://'+url.host+'/hmr');
         socket.addEventListener('message', (event) =>
         {
             console.log('Message from server ', event.data);
@@ -146,11 +145,6 @@ export default async({Themed, Source, Static, Client, Launch, Import, Deploy}:{T
         });
 
         `}}/>
-            <script id="reloader" type="module"></script>
-            <form method="GET" action="?cache">
-                <input type="hidden" name="cacher"/>
-                <input type="submit"/>
-            </form>
             </body>
         </html>;
     }

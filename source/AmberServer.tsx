@@ -74,6 +74,12 @@ export default async({Themed, Source, Static, Client, Launch, Import, Deploy}:{T
             )
         );
         `}}/>
+<script type="module" dangerouslySetInnerHTML={{__html:`
+const socket = new WebSocket('ws://localhost:3333/hmr');
+socket.addEventListener('message', (event) => {
+    console.log('Message from server ', event.data);
+});
+`}}/>
             </body>
         </html>;
     }
@@ -153,6 +159,8 @@ export default async({Themed, Source, Static, Client, Launch, Import, Deploy}:{T
 
     console.log("Transpiling/tailwind complete");
 
+    let socketRef:undefined|WebSocket;
+
     serve(async (inRequest:Request) =>
     {
         const url = new URL(inRequest.url);
@@ -175,6 +183,28 @@ export default async({Themed, Source, Static, Client, Launch, Import, Deploy}:{T
         {
             const check:string|undefined = FilesParse[path];
             return check ? new Response(check, { status:200, headers: { "content-type": "application/javascript; charset=utf-8" } }) : resp404;
+        }
+        else if(path.startsWith("hmr"))
+        {
+            const upgrade = inRequest.headers.get("upgrade") || "";
+            let response, socket: WebSocket;
+            try {
+              ({ response, socket } = Deno.upgradeWebSocket(inRequest));
+            } catch {
+              return new Response("request isn't trying to upgrade to websocket.");
+            }
+
+            socket.onopen = () => console.log("socket opened");
+            socket.onmessage = (e) => {
+              console.log("socket message:", e.data);
+              socket.send(new Date().toString());
+            };
+            socket.onerror = (e) => console.log("socket errored:", e);
+            socket.onclose = () => console.log("socket closed");
+
+            socketRef = socket;
+
+            return response;
         }
         else
         {
@@ -200,4 +230,56 @@ export default async({Themed, Source, Static, Client, Launch, Import, Deploy}:{T
     , {port:Deploy});
 
     console.log("Amber running on port", Deploy);
+
+
+let waiting = false;
+let interrupted = false;
+let timer:undefined|number;
+const timerDone = ()=>
+{
+    
+    if(interrupted)
+    {
+        console.log("--timer done, but starting again", waiting, interrupted);
+        startTimer();
+    }
+    else
+    {
+        waiting = false;
+        interrupted = false;
+        console.log("--timer done", waiting, interrupted);
+
+        socketRef?.send("refresh");
+
+    }
+};
+const startTimer =()=>
+{
+    console.log("--timer started", waiting, interrupted);
+    waiting = true;
+    interrupted = false;
+    if(timer){clearTimeout(timer);}
+
+    timer = setTimeout(timerDone, 500);
+}
+
+const registerChange =():boolean=>
+{
+    if(waiting)
+    {
+        interrupted = true;
+        return true;
+    }
+    else
+    {
+        startTimer();
+        return false;
+    }
+};
+
+    const watcher = Deno.watchFs(".");
+    for await (const event of watcher)
+    {
+        registerChange();
+    }
 };

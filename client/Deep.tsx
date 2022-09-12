@@ -33,7 +33,7 @@ export default ()=>
     const highlight =(inPath:string)=> folder == inPath ? "bg-green-500" : "bg-black";
 
     return <div className="p-2 border">
-    <p className="p-4 border">3 {folder}</p>
+    <p className="p-4 border">current route: {folder}</p>
     <nav>
         <a className={`text-white p-2 ${highlight("")}`} href="/">Home</a>
         <a className={`text-white p-2 ${highlight("about")}`} href="/about">About</a>
